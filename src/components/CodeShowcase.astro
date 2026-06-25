@@ -1,0 +1,81 @@
+---
+// CodeShowcase.astro — "read the source, audit the logic"
+import { codeSnippets } from '../data/code-snippets.ts';
+
+function highlight(code: string): string {
+  const escaped = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped.split('\n').map((line) => highlightLine(line)).join('\n');
+}
+
+function highlightLine(line: string): string {
+  if (/^\s*\/\//.test(line)) {
+    return `<span style="color: var(--wb-fg-muted);">${line}</span>`;
+  }
+  const commentIdx = line.indexOf('//');
+  let main = line;
+  let comment = '';
+  if (commentIdx !== -1) {
+    const before = line.slice(0, commentIdx);
+    const quoteCount = (before.match(/&quot;|"/g) ?? []).length;
+    if (quoteCount % 2 === 0) {
+      main = line.slice(0, commentIdx);
+      comment = `<span style="color: var(--wb-fg-muted);">${line.slice(commentIdx)}</span>`;
+    }
+  }
+  let result = main;
+  result = result.replace(/(&quot;[^&]*?&quot;)/g, '<span style="color: var(--wb-positive);">$1</span>');
+  result = result.replace(/(@\w+)/g, '<span style="color: var(--wb-warning);">$1</span>');
+  const keywords = ['public','private','protected','static','final','abstract','sealed','permits','interface','record','class','enum','new','return','if','else','for','while','switch','case','default','throw','throws','try','catch','finally','implements','extends','void','var','null','true','false'];
+  result = result.replace(new RegExp(`\\b(${keywords.join('|')})\\b`, 'g'), '<span style="color: #a78bfa;">$1</span>');
+  const types = ['String','List','UUID','StandardCharsets','HashVerificationResult','Event','Object','DealStatus','DealAgent','HashChainService','Component','ChatClient'];
+  result = result.replace(new RegExp(`\\b(${types.join('|')})\\b`, 'g'), '<span style="color: var(--wb-accent);">$1</span>');
+  return result + comment;
+}
+---
+
+<section id="source" class="section-padding" style="background-color: var(--wb-bg-panel); border-top: 1px solid var(--wb-border-subtle); border-bottom: 1px solid var(--wb-border-subtle);">
+  <div class="container-narrow mx-auto">
+
+    <div class="max-w-3xl mb-12">
+      <span class="section-eyebrow">Read the source. Audit the logic.</span>
+      <h2 class="section-title mt-3">A trading platform you can read end to end.</h2>
+      <p class="section-subtitle">
+        For your CISO, your audit committee, and the architect who has to live with this for a decade:
+        the entire codebase is open source. There is no escrow, no "trust the vendor",
+        no surprise re-licensing. The logic that prices your book is the logic in this repository.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-6">
+      {codeSnippets.map((snippet) => (
+        <div class="rounded-lg overflow-hidden" style="background-color: var(--wb-bg-base); border: 1px solid var(--wb-border-subtle);">
+          <div class="flex items-center justify-between gap-4 px-5 py-3" style="border-bottom: 1px solid var(--wb-border-subtle); background-color: var(--wb-bg-raised);">
+            <span class="font-mono text-sm text-wb-fg truncate">{snippet.filePath.split('/').pop()}</span>
+            <a href={`https://github.com/opentrms/opentrms/tree/main/${snippet.filePath}`}
+              target="_blank" rel="noopener noreferrer"
+              class="flex-shrink-0 text-xs font-medium hover:underline whitespace-nowrap inline-flex items-center gap-1"
+              style="color: var(--wb-accent);"
+            >
+              View on GitHub
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+            </a>
+          </div>
+          <div class="px-5 pt-4 pb-3">
+            <h3 class="text-sm font-semibold text-wb-fg">{snippet.title}</h3>
+            <p class="text-sm text-wb-fg-secondary leading-relaxed mt-1">{snippet.description}</p>
+          </div>
+          <div class="px-5 pb-5">
+            <div class="rounded-md overflow-x-auto" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+              <pre class="font-mono text-[13px] leading-relaxed p-5" style="color: var(--wb-fg-primary);"><code set:html={highlight(snippet.code)} /></pre>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

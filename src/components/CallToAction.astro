@@ -1,0 +1,36 @@
+---
+interface Props {
+  title?: string;
+}
+const { title = "Ready to replace your multi-million dollar trading system?" } = Astro.props;
+---
+
+<section id="contact" class="section-padding relative overflow-hidden" style="background-color: var(--wb-bg-panel); border-top: 1px solid var(--wb-border-subtle);">
+  <div aria-hidden="true" class="absolute inset-0 opacity-30 pointer-events-none"
+    style="background-image: radial-gradient(60% 50% at 50% 100%, rgba(20,184,166,0.18) 0%, transparent 70%);">
+  </div>
+
+  <div class="relative container-narrow mx-auto text-center">
+    <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-wb-fg max-w-3xl mx-auto leading-tight">
+      {title}
+    </h2>
+    <p class="mt-5 text-lg text-wb-fg-secondary max-w-xl mx-auto leading-relaxed">
+      Walk us through your book. We'll walk you through how OpenTRMS would run it —
+      on your infrastructure, against your controls, with your team.
+    </p>
+
+    <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+      <a href="mailto:hello@opentrms.com?subject=Walkthrough%20request" class="btn-primary px-7 py-4 text-base">
+        Book a walkthrough
+      </a>
+      <a href="https://github.com/opentrms/opentrms" target="_blank" rel="noopener noreferrer"
+         class="btn-secondary px-7 py-4 text-base">
+        Star on GitHub
+      </a>
+    </div>
+
+    <p class="mt-8 text-xs font-mono uppercase tracking-[0.18em] text-wb-fg-muted">
+      Open source · No license metering · Enterprise support available
+    </p>
+  </div>
+</section>

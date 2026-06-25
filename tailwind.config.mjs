@@ -1,0 +1,66 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
+  theme: {
+    extend: {
+      colors: {
+        wb: {
+          base: 'var(--wb-bg-base)',
+          panel: 'var(--wb-bg-panel)',
+          raised: 'var(--wb-bg-raised)',
+          sunken: 'var(--wb-bg-sunken)',
+          'border-subtle': 'var(--wb-border-subtle)',
+          'border-strong': 'var(--wb-border-strong)',
+          fg: 'var(--wb-fg-primary)',
+          'fg-secondary': 'var(--wb-fg-secondary)',
+          'fg-muted': 'var(--wb-fg-muted)',
+          'fg-disabled': 'var(--wb-fg-disabled)',
+          accent: 'var(--wb-accent)',
+          'accent-hover': 'var(--wb-accent-hover)',
+          'accent-active': 'var(--wb-accent-active)',
+          'accent-muted': 'var(--wb-accent-muted)',
+          'accent-fg': 'var(--wb-accent-fg)',
+          positive: 'var(--wb-positive)',
+          negative: 'var(--wb-negative)',
+          warning: 'var(--wb-warning)',
+          info: 'var(--wb-info)',
+        },
+        // Legacy aliases — kept so any unmigrated component still reads on dark.
+        brand: {
+          50: '#0a0b0d',
+          100: '#111317',
+          200: '#161a1f',
+          300: '#1f252d',
+          400: '#8a93a0',
+          500: '#8a93a0',
+          600: '#e6eaf0',
+          700: '#e6eaf0',
+          800: '#e6eaf0',
+          900: '#e6eaf0',
+        },
+        accent: {
+          50: 'rgba(20,184,166,0.10)',
+          100: 'rgba(20,184,166,0.16)',
+          200: 'rgba(20,184,166,0.24)',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#14b8a6',
+          700: '#0fa99b',
+          800: '#0c8a7f',
+          900: '#134e4a',
+        },
+      },
+      fontFamily: {
+        sans: ['var(--wb-font-sans)'],
+        mono: ['var(--wb-font-mono)'],
+      },
+      borderRadius: {
+        sm: 'var(--wb-radius-sm)',
+        md: 'var(--wb-radius-md)',
+        lg: 'var(--wb-radius-lg)',
+      },
+    },
+  },
+  plugins: [],
+};

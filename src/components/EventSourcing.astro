@@ -1,0 +1,108 @@
+---
+// EventSourcing.astro — sold to audit/control: the audit trail IS the system
+const promises = [
+  {
+    title: 'Nothing is overwritten — ever.',
+    body: 'Every state change appends a new event. The history of a deal is the deal. Auditors stop asking "show me the change log" because the change log is all there is.',
+  },
+  {
+    title: 'Tampering breaks the chain, visibly.',
+    body: 'Every event is hashed and linked to the previous one. Insert, delete or modify any record and the chain refuses to reconcile — no quiet edits, no "lost" rows.',
+  },
+  {
+    title: 'Immutability enforced by the database, not by trust.',
+    body: 'UPDATE and DELETE on the event table are revoked at the PostgreSQL level. Application bugs cannot rewrite history. Neither can a misbehaving DBA.',
+  },
+  {
+    title: 'Every action is attributed.',
+    body: 'User, scope, correlation id and timestamp are part of the event. "Who approved this?" is a one-line query, not a forensics project.',
+  },
+  {
+    title: 'Replay any day, on demand.',
+    body: 'Rebuild the book as it stood at any point in time. Reconcile to a regulator, run a what-if, or unblock a dispute — without freezing production.',
+  },
+];
+
+const chainEvents = [
+  { seq: 1, name: 'DealCaptured',  hash: 'a7f3c91d…e2b10f84', prev: '00000000…00000000', isGenesis: true },
+  { seq: 2, name: 'STPPassed',     hash: '3d82b47e…f4a96c51', prev: 'a7f3c91d…e2b10f84', isGenesis: false },
+  { seq: 3, name: 'DealConfirmed', hash: '9bc14a2f…d3e70862', prev: '3d82b47e…f4a96c51', isGenesis: false },
+  { seq: 4, name: 'DealValuated',  hash: 'e5f0d839…a8c21b73', prev: '9bc14a2f…d3e70862', isGenesis: false },
+];
+---
+
+<section id="audit" class="section-padding" style="background-color: var(--wb-bg-base);">
+  <div class="container-narrow mx-auto">
+
+    <div class="max-w-3xl mb-14">
+      <span class="section-eyebrow">Audit trail as system of record</span>
+      <h2 class="section-title mt-3">Your audit trail isn't a report. It's the platform.</h2>
+      <p class="section-subtitle">
+        Most TRMS vendors bolt audit tables onto a CRUD database and hope. OpenTRMS is event-sourced
+        from the first commit — the history of every deal is the deal. Audit, control and risk teams
+        get the answer they actually want: a single, attributed, replayable timeline.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-10 items-start">
+
+      <ul class="lg:col-span-3 space-y-6">
+        {promises.map((p) => (
+          <li class="flex gap-4">
+            <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5"
+              style="background-color: var(--wb-accent-muted); border: 1px solid var(--wb-border-subtle);"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--wb-accent);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold text-wb-fg">{p.title}</h3>
+              <p class="mt-1 text-sm text-wb-fg-secondary leading-relaxed">{p.body}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div class="lg:col-span-2">
+        <p class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted mb-5">A live hash chain</p>
+        <div class="space-y-0">
+          {chainEvents.map((evt, i) => (
+            <div>
+              <div class="rounded-lg px-5 py-4 font-mono"
+                style="background-color: var(--wb-bg-panel); border: 1px solid var(--wb-border-subtle);"
+              >
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs text-wb-fg-muted">Event #{evt.seq}</span>
+                  <span class="text-[11px] font-medium px-2 py-0.5 rounded"
+                    style="color: var(--wb-accent); background-color: var(--wb-accent-muted);"
+                  >{evt.name}</span>
+                </div>
+                <div class="space-y-1.5 text-xs">
+                  <div class="flex gap-2">
+                    <span class="text-wb-fg-muted w-9 flex-shrink-0">hash</span>
+                    <span class="truncate" style="color: var(--wb-accent);">{evt.hash}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <span class="text-wb-fg-muted w-9 flex-shrink-0">prev</span>
+                    <span class={`truncate ${evt.isGenesis ? '' : ''}`} style={evt.isGenesis ? 'color: var(--wb-fg-muted)' : 'color: var(--wb-accent)'}>
+                      {evt.prev}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {i < chainEvents.length - 1 && (
+                <div class="flex flex-col items-center py-1">
+                  <div class="w-px h-3" style="background-color: var(--wb-border-strong);"></div>
+                  <span class="text-[10px] font-mono text-wb-fg-muted my-1">SHA-256</span>
+                  <div class="w-px h-3" style="background-color: var(--wb-border-strong);"></div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>

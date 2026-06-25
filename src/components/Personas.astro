@@ -1,0 +1,61 @@
+---
+const personas = [
+  {
+    eyebrow: 'Treasury & front office',
+    title: 'Capture any product. Settle any way. See the book in real time.',
+    body: 'FX, money markets, IRS, bonds, repos and structured deals on one ledger. Traders book in seconds; ops moves on without re-keying.',
+    href: '#assets',
+    cta: 'See asset coverage',
+  },
+  {
+    eyebrow: 'Risk, audit & control',
+    title: 'Every change is immutable, attributed, and replayable.',
+    body: 'Event-sourced from day one. The history is the system of record — no after-the-fact reconciliations, no spreadsheet trail, no "trust us".',
+    href: '#audit',
+    cta: 'How the audit trail works',
+  },
+  {
+    eyebrow: 'CIO & architects',
+    title: 'Replace your TRMS instead of renewing it.',
+    body: 'Java 21 and PostgreSQL — boring, durable, hireable. No proprietary runtime. No vendor cliff in three years. Your stack, your roadmap.',
+    href: '#source',
+    cta: 'Read the architecture',
+  },
+  {
+    eyebrow: 'CISO & security',
+    title: 'Read the code. Host it yourself. Control your data plane.',
+    body: 'Open-source code you can audit line by line. Run it air-gapped, in your VPC, under your IAM. No phone-home, no escrow, no surprise license audit.',
+    href: '#source',
+    cta: 'Audit the code',
+  },
+];
+---
+
+<section id="who" class="section-padding" style="background-color: var(--wb-bg-base);">
+  <div class="container-narrow mx-auto">
+    <div class="max-w-3xl">
+      <span class="section-eyebrow">Who it's for</span>
+      <h2 class="section-title mt-3">A trading platform that answers to four people at once.</h2>
+      <p class="section-subtitle">
+        TRMS decisions don't get made by one team. OpenTRMS is built so each stakeholder
+        gets a clear, defensible answer — not a feature checklist.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12">
+      {personas.map((p) => (
+        <a href={p.href} class="panel group flex flex-col">
+          <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-accent">{p.eyebrow}</span>
+          <h3 class="mt-3 text-lg font-semibold text-wb-fg leading-snug">{p.title}</h3>
+          <p class="mt-3 text-sm text-wb-fg-secondary leading-relaxed">{p.body}</p>
+          <span class="mt-5 text-xs font-medium text-wb-accent inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+            {p.cta}
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+            </svg>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>

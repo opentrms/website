@@ -1,0 +1,53 @@
+/*
+ * OpenTRMS website — Design Tokens
+ * Mirrors trms-workbench tokens so marketing site reads as the
+ * visual twin of the product.
+ */
+
+:root {
+  /* Surfaces — base clearly grey so panels read as raised, not invisible */
+  --wb-bg-base: #161b23;
+  --wb-bg-panel: #232934;
+  --wb-bg-raised: #2e3540;
+  --wb-bg-sunken: #0d1117;
+
+  /* Borders — assertively visible */
+  --wb-border-subtle: #3f4856;
+  --wb-border-strong: #56616f;
+
+  /* Text */
+  --wb-fg-primary: #f8fafc;
+  --wb-fg-secondary: #cdd4de;
+  --wb-fg-muted: #a4adba;
+  --wb-fg-disabled: #6b7280;
+
+  /* Brand accent (teal) */
+  --wb-accent: #14b8a6;
+  --wb-accent-hover: #0fa99b;
+  --wb-accent-active: #0c8a7f;
+  --wb-accent-muted: rgba(20, 184, 166, 0.12);
+  --wb-accent-ring: rgba(20, 184, 166, 0.35);
+  --wb-accent-fg: #0a0b0d;
+
+  /* Semantic */
+  --wb-positive: #10b981;
+  --wb-negative: #ef4444;
+  --wb-warning: #f59e0b;
+  --wb-info: #3b82f6;
+
+  /* Shadows */
+  --wb-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --wb-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --wb-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  /* Typography */
+  --wb-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --wb-font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
+  --wb-radius-sm: 4px;
+  --wb-radius-md: 6px;
+  --wb-radius-lg: 8px;
+}
+
+.wb-mono { font-family: var(--wb-font-mono); }
+.wb-tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }

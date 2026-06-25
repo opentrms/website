@@ -1,0 +1,155 @@
+---
+// MarketViz.astro — small dashboard mock used in the hero.
+// Pure SVG, no JS, no fetch. Deterministic data so the page is stable.
+
+// Yield curve (USD, illustrative): tenor → rate (%).
+const curve = [
+  { t: '1M',  r: 4.42 },
+  { t: '3M',  r: 4.55 },
+  { t: '6M',  r: 4.68 },
+  { t: '1Y',  r: 4.71 },
+  { t: '2Y',  r: 4.39 },
+  { t: '3Y',  r: 4.18 },
+  { t: '5Y',  r: 4.02 },
+  { t: '7Y',  r: 4.05 },
+  { t: '10Y', r: 4.12 },
+  { t: '20Y', r: 4.34 },
+  { t: '30Y', r: 4.41 },
+];
+
+// Map curve to SVG path inside a 320×120 viewBox (with 28px left axis pad).
+const w = 320, h = 120, padL = 28, padR = 8, padT = 12, padB = 22;
+const innerW = w - padL - padR;
+const innerH = h - padT - padB;
+const minR = 3.9, maxR = 4.8;
+const xs = curve.map((_, i) => padL + (innerW * i) / (curve.length - 1));
+const ys = curve.map((p) => padT + innerH * (1 - (p.r - minR) / (maxR - minR)));
+const linePath = curve.map((_, i) => `${i === 0 ? 'M' : 'L'} ${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
+const areaPath = `${linePath} L ${xs[xs.length - 1]} ${padT + innerH} L ${xs[0]} ${padT + innerH} Z`;
+
+// P&L sparkline (last 30 days, % cumulative).
+const pnl = [0,0.12,0.18,0.05,-0.08,-0.22,-0.14,0.04,0.21,0.33,0.41,0.36,0.48,0.55,0.62,0.51,0.43,0.58,0.71,0.82,0.74,0.69,0.83,0.97,1.05,1.12,1.04,1.18,1.31,1.42];
+const sw = 200, sh = 48;
+const minP = Math.min(...pnl), maxP = Math.max(...pnl);
+const sx = pnl.map((_, i) => (sw * i) / (pnl.length - 1));
+const sy = pnl.map((v) => sh - 2 - (sh - 4) * ((v - minP) / (maxP - minP)));
+const sparkPath = pnl.map((_, i) => `${i === 0 ? 'M' : 'L'} ${sx[i].toFixed(1)} ${sy[i].toFixed(1)}`).join(' ');
+
+// Tick rows.
+const positions = [
+  { ccy: 'USD', pv: '+12.4M', dv01: '−18,420', delta: 'pos' },
+  { ccy: 'EUR', pv:  '+8.1M', dv01:  '−9,205', delta: 'pos' },
+  { ccy: 'GBP', pv:  '−2.7M', dv01:  '+3,140', delta: 'neg' },
+  { ccy: 'JPY', pv:  '+1.9M', dv01:  '−2,015', delta: 'pos' },
+];
+---
+
+<div class="rounded-lg overflow-hidden" style="background-color: var(--wb-bg-panel); border: 1px solid var(--wb-border-strong); box-shadow: var(--wb-shadow-lg);">
+
+  <!-- Title bar -->
+  <div class="flex items-center justify-between px-4 py-2.5" style="background-color: var(--wb-bg-raised); border-bottom: 1px solid var(--wb-border-subtle);">
+    <div class="flex items-center gap-2">
+      <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background-color: var(--wb-positive);"></span>
+      <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-secondary">Live · Rates desk</span>
+    </div>
+    <span class="text-[11px] font-mono text-wb-fg-muted">EOD T−1 · 17:00 NY</span>
+  </div>
+
+  <div class="p-4 space-y-4">
+
+    <!-- Yield curve panel -->
+    <div class="rounded-md p-4" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+      <div class="flex items-baseline justify-between mb-2">
+        <div>
+          <div class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted">USD swap curve</div>
+          <div class="text-sm font-semibold text-wb-fg mt-0.5">Projection · today</div>
+        </div>
+        <div class="text-right wb-tabular-nums">
+          <div class="text-base font-semibold text-wb-fg">4.12<span class="text-wb-fg-muted">%</span></div>
+          <div class="text-[11px] font-mono" style="color: var(--wb-positive);">+3.2 bp</div>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${w} ${h}`} class="w-full h-auto" role="img" aria-label="USD swap curve">
+        <defs>
+          <linearGradient id="curveFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="var(--wb-accent)" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="var(--wb-accent)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        <!-- horizontal grid -->
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+          const y = padT + innerH * f;
+          return <line x1={padL} x2={w - padR} y1={y} y2={y} stroke="var(--wb-border-subtle)" stroke-dasharray="2 4" />;
+        })}
+
+        <!-- y-axis labels -->
+        {[0, 0.5, 1].map((f) => {
+          const y = padT + innerH * f;
+          const v = (maxR - (maxR - minR) * f).toFixed(2);
+          return <text x={4} y={y + 3} font-size="9" font-family="var(--wb-font-mono)" fill="var(--wb-fg-muted)">{v}%</text>;
+        })}
+
+        <!-- area + line -->
+        <path d={areaPath} fill="url(#curveFill)" />
+        <path d={linePath} fill="none" stroke="var(--wb-accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" />
+
+        <!-- points -->
+        {curve.map((_, i) => (
+          <circle cx={xs[i]} cy={ys[i]} r="2" fill="var(--wb-bg-sunken)" stroke="var(--wb-accent)" stroke-width="1.25" />
+        ))}
+
+        <!-- x-axis labels -->
+        {curve.map((p, i) => (
+          (i === 0 || i === 4 || i === 8 || i === curve.length - 1) && (
+            <text x={xs[i]} y={h - 6} text-anchor="middle" font-size="9" font-family="var(--wb-font-mono)" fill="var(--wb-fg-muted)">{p.t}</text>
+          )
+        ))}
+      </svg>
+    </div>
+
+    <!-- Two-up: PnL spark + open trades tile -->
+    <div class="grid grid-cols-2 gap-3">
+
+      <div class="rounded-md p-3" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+        <div class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted">P&amp;L · 30D</div>
+        <div class="flex items-baseline justify-between mt-0.5">
+          <div class="text-base font-semibold text-wb-fg wb-tabular-nums">+1.42<span class="text-wb-fg-muted">%</span></div>
+          <div class="text-[11px] font-mono" style="color: var(--wb-positive);">▲</div>
+        </div>
+        <svg viewBox={`0 0 ${sw} ${sh}`} class="w-full h-auto mt-2" role="img" aria-label="P&L sparkline">
+          <path d={sparkPath} fill="none" stroke="var(--wb-positive)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+
+      <div class="rounded-md p-3" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+        <div class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted">Open trades</div>
+        <div class="flex items-baseline justify-between mt-0.5">
+          <div class="text-base font-semibold text-wb-fg wb-tabular-nums">1,284</div>
+          <div class="text-[11px] font-mono text-wb-fg-secondary">+47 today</div>
+        </div>
+        <div class="mt-3 grid grid-cols-3 gap-1">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <span class="h-2 rounded-sm" style={`background-color: ${i % 7 === 3 ? 'var(--wb-warning)' : i % 11 === 5 ? 'var(--wb-negative)' : 'var(--wb-accent)'}; opacity: ${0.35 + ((i * 13) % 6) / 10};`}></span>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- Position table -->
+    <div class="rounded-md overflow-hidden" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+      <div class="grid grid-cols-[1fr_1fr_1fr] px-3 py-2 text-[10px] font-mono uppercase tracking-[0.16em] text-wb-fg-muted" style="border-bottom: 1px solid var(--wb-border-subtle);">
+        <span>Currency</span><span class="text-right">PV</span><span class="text-right">DV01</span>
+      </div>
+      {positions.map((p) => (
+        <div class="grid grid-cols-[1fr_1fr_1fr] px-3 py-2 text-xs wb-tabular-nums" style="border-bottom: 1px solid var(--wb-border-subtle);">
+          <span class="text-wb-fg">{p.ccy}</span>
+          <span class="text-right" style={`color: ${p.delta === 'pos' ? 'var(--wb-positive)' : 'var(--wb-negative)'}`}>{p.pv}</span>
+          <span class="text-right text-wb-fg-secondary">{p.dv01}</span>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</div>

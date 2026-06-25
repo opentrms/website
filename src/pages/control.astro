@@ -1,0 +1,1869 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="OpenTRMS Control — Agent Workbench"
+  description="Development-facing agent workbench for OpenTRMS. Chat-first deal capture and portfolio views with structured panels."
+>
+  <main class="workbench-page">
+    <div class="workbench-shell">
+      <header class="workbench-topbar">
+        <div class="workbench-brand">
+          <div class="brand-mark">TR</div>
+          <div>
+            <p class="eyebrow">Development Control</p>
+            <h1>Agent Workbench</h1>
+          </div>
+        </div>
+
+        <div class="workbench-controls">
+          <label class="api-control">
+            <span>API</span>
+            <input id="api-base" type="text" value="http://localhost:8080" />
+          </label>
+
+          <div class="persona-switch" id="persona-switch">
+            <button class="persona active" data-role="trader">Trader</button>
+            <button class="persona" data-role="operations">Operations</button>
+            <button class="persona" data-role="risk_manager">Risk</button>
+          </div>
+
+          <div class="session-chip" id="session-chip">Connecting</div>
+        </div>
+      </header>
+
+      <section class="workbench-layout">
+        <aside class="workbench-rail">
+          <div class="rail-card">
+            <p class="rail-label">How It Works</p>
+            <h2>Intent first. Structure on demand.</h2>
+            <p class="rail-copy">
+              Start in chat, then let the system open a form or report when it helps. Panels never replace the conversation.
+            </p>
+          </div>
+
+          <div class="rail-card">
+            <div class="rail-head">
+              <p class="rail-label">Prompt Library</p>
+              <button class="link-button" id="reset-prompts" type="button">Reset</button>
+            </div>
+            <div class="chip-list" id="prompt-chips"></div>
+          </div>
+
+          <div class="rail-card">
+            <div class="rail-head">
+              <p class="rail-label">Saved Views</p>
+              <button class="link-button" id="clear-templates" type="button">Clear</button>
+            </div>
+            <div class="saved-list" id="saved-templates"></div>
+          </div>
+
+          <div class="rail-card">
+            <p class="rail-label">Development Notes</p>
+            <ul class="notes-list">
+              <li>Persona switching recreates the AI session without auth.</li>
+              <li>Bond capture uses real API calls for instrument creation and deal capture.</li>
+              <li>Saved views are stored locally in the browser for now.</li>
+            </ul>
+          </div>
+        </aside>
+
+        <section class="conversation-panel">
+          <div class="conversation-hero">
+            <div>
+              <p class="eyebrow">Smooth Interaction</p>
+              <h2>Ask for work, not screens.</h2>
+            </div>
+            <p>
+              Try “book a 5M CAD bond with ISIN CA0000000001” or “give me my portfolio positions”.
+            </p>
+          </div>
+
+          <div class="conversation-log" id="conversation-log"></div>
+
+          <form class="composer" id="composer">
+            <textarea
+              id="composer-input"
+              rows="3"
+              placeholder="Ask the agent to book a bond deal, open a report, or refine the current draft."
+            ></textarea>
+            <div class="composer-actions">
+              <div class="composer-hint" id="composer-hint">No panel open</div>
+              <button class="primary-button" id="send-message" type="submit">Send</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </div>
+
+    <div class="panel-backdrop" id="panel-backdrop"></div>
+    <aside class="slide-panel" id="slide-panel" aria-hidden="true">
+      <div class="panel-frame">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow" id="panel-surface">Workbench Surface</p>
+            <h3 id="panel-title">Panel</h3>
+          </div>
+          <div class="panel-actions">
+            <button class="ghost-button" id="save-template" type="button">Save view</button>
+            <button class="ghost-button" id="close-panel" type="button">Close</button>
+          </div>
+        </div>
+
+        <div class="panel-body" id="panel-body"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script is:inline>
+    const STORAGE_KEYS = {
+      apiBase: 'trms.workbench.apiBase',
+      persona: 'trms.workbench.persona',
+      templates: 'trms.workbench.templates'
+    };
+
+    const state = {
+      apiBase: localStorage.getItem(STORAGE_KEYS.apiBase) || 'http://localhost:8080',
+      persona: localStorage.getItem(STORAGE_KEYS.persona) || 'trader',
+      sessionId: null,
+      sessionStatus: 'Connecting',
+      bootstrap: { books: [], counterparties: [], bonds: [] },
+      templates: loadTemplates(),
+      messages: [],
+      promptLibrary: [],
+      panel: {
+        open: false,
+        surface: null,
+        title: '',
+        payload: {}
+      }
+    };
+
+    const elements = {
+      apiBase: document.getElementById('api-base'),
+      personaSwitch: document.getElementById('persona-switch'),
+      sessionChip: document.getElementById('session-chip'),
+      promptChips: document.getElementById('prompt-chips'),
+      resetPrompts: document.getElementById('reset-prompts'),
+      savedTemplates: document.getElementById('saved-templates'),
+      clearTemplates: document.getElementById('clear-templates'),
+      conversationLog: document.getElementById('conversation-log'),
+      composer: document.getElementById('composer'),
+      composerInput: document.getElementById('composer-input'),
+      composerHint: document.getElementById('composer-hint'),
+      panelBackdrop: document.getElementById('panel-backdrop'),
+      slidePanel: document.getElementById('slide-panel'),
+      panelSurface: document.getElementById('panel-surface'),
+      panelTitle: document.getElementById('panel-title'),
+      panelBody: document.getElementById('panel-body'),
+      saveTemplate: document.getElementById('save-template'),
+      closePanel: document.getElementById('close-panel')
+    };
+
+    const PERSONA_CONFIG = {
+      trader: {
+        label: 'Trader',
+        welcome: 'I can help you book bond trades, inspect position impact, and save reusable capture/report surfaces.',
+        prompts: [
+          'Book a 5M CAD bond with ISIN CA0000000001',
+          'Open a bond form for a new GoC issue',
+          'Give me my portfolio positions'
+        ]
+      },
+      operations: {
+        label: 'Operations',
+        welcome: 'I can open structured views for positions, approvals context, and operational follow-up while keeping the conversation live.',
+        prompts: [
+          'Show my portfolio positions',
+          'Open the approval context for pending work',
+          'Prepare a bond ticket and let me review it'
+        ]
+      },
+      risk_manager: {
+        label: 'Risk',
+        welcome: 'I can bring up position reports, draft trade tickets, and keep the numbers visible while you ask follow-up questions.',
+        prompts: [
+          'Give me my portfolio positions',
+          'Open a bond trade draft for review',
+          'Show approval context for a bond booking'
+        ]
+      }
+    };
+
+    initialiseWorkbench().catch((error) => {
+      console.error(error);
+      appendMessage('assistant', 'Workbench initialisation failed. Check the API base and local TRMS server.');
+      renderAll();
+    });
+
+    async function initialiseWorkbench() {
+      syncFormControls();
+      bindEvents();
+      state.promptLibrary = [...PERSONA_CONFIG[state.persona].prompts];
+      appendMessage('assistant', PERSONA_CONFIG[state.persona].welcome);
+      renderAll();
+      await fetchBootstrap();
+      await createSession();
+      renderAll();
+    }
+
+    function bindEvents() {
+      elements.apiBase.addEventListener('change', async (event) => {
+        state.apiBase = event.target.value.trim().replace(/\/$/, '');
+        localStorage.setItem(STORAGE_KEYS.apiBase, state.apiBase);
+        state.sessionStatus = 'Reconnecting';
+        renderSession();
+        await createSession();
+      });
+
+      elements.personaSwitch.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-role]');
+        if (!button) return;
+        state.persona = button.dataset.role;
+        state.promptLibrary = [...PERSONA_CONFIG[state.persona].prompts];
+        localStorage.setItem(STORAGE_KEYS.persona, state.persona);
+        appendMessage('assistant', `Persona switched to ${PERSONA_CONFIG[state.persona].label}. ${PERSONA_CONFIG[state.persona].welcome}`);
+        await createSession();
+        renderAll();
+      });
+
+      elements.resetPrompts.addEventListener('click', () => {
+        state.promptLibrary = [...PERSONA_CONFIG[state.persona].prompts];
+        renderPromptLibrary();
+      });
+
+      elements.clearTemplates.addEventListener('click', () => {
+        state.templates = [];
+        persistTemplates();
+        renderTemplates();
+      });
+
+      elements.promptChips.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-prompt]');
+        if (!button) return;
+        elements.composerInput.value = button.dataset.prompt;
+        elements.composerInput.focus();
+      });
+
+      elements.savedTemplates.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-template-id]');
+        if (!button) return;
+        const template = state.templates.find((entry) => entry.id === button.dataset.templateId);
+        if (!template) return;
+        await openSavedTemplate(template);
+      });
+
+      elements.composer.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const message = elements.composerInput.value.trim();
+        if (!message) return;
+        elements.composerInput.value = '';
+        await sendMessage(message);
+      });
+
+      elements.closePanel.addEventListener('click', closePanel);
+      elements.panelBackdrop.addEventListener('click', closePanel);
+      elements.saveTemplate.addEventListener('click', saveCurrentPanel);
+      elements.panelBody.addEventListener('click', handlePanelClick);
+      elements.panelBody.addEventListener('change', handlePanelChange);
+      elements.panelBody.addEventListener('submit', handlePanelSubmit);
+    }
+
+    async function fetchBootstrap() {
+      try {
+        const response = await fetch(apiUrl('/api/v1/dev/workbench/bootstrap'));
+        if (!response.ok) {
+          throw new Error(`Bootstrap request failed: ${response.status}`);
+        }
+        state.bootstrap = await response.json();
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', 'Reference data could not be loaded. The workbench will still open, but selectors may be empty.');
+      }
+    }
+
+    async function createSession() {
+      try {
+        const response = await fetch(apiUrl('/api/v1/ai/sessions'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_type: 'general',
+            provider: 'openrouter',
+            model: 'nvidia/nemotron-3-super-120b-a12b:free',
+            user_role: state.persona,
+            desk: 'default'
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`Session request failed: ${response.status}`);
+        }
+        const session = await response.json();
+        state.sessionId = session.sessionId || session.session_id || null;
+        const sessionRole = session.userRole || session.user_role || state.persona;
+        state.sessionStatus = `${sessionRole} ready`;
+      } catch (error) {
+        console.error(error);
+        state.sessionId = null;
+        state.sessionStatus = 'Offline';
+        appendMessage('assistant', 'Could not create an AI session. Verify the Spring Boot API is running, then reload or send again.');
+      }
+      renderSession();
+    }
+
+    async function sendMessage(message) {
+      appendMessage('user', message);
+      renderConversation();
+
+      if (!state.sessionId) {
+        await createSession();
+      }
+
+      if (!state.sessionId) {
+        appendMessage('assistant', 'There is still no active session. Check the API base and confirm the Spring Boot app was restarted after the latest changes.');
+        renderConversation();
+        return;
+      }
+
+      try {
+        const response = await fetch(apiUrl('/api/v1/ai/message'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            message
+          })
+        });
+        if (!response.ok) {
+          throw new Error(`AI message failed: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const uiAction = payload.uiAction || payload.ui_action || null;
+        const responseText = payload.response || payload.message || '';
+        const suggestedPrompts = payload.suggestedPrompts || payload.suggested_prompts || [];
+        appendMessage('assistant', responseText, uiAction, suggestedPrompts);
+
+        if (uiAction) {
+          await openUiAction(uiAction);
+          if (uiAction.surface === 'portfolio_positions') {
+            state.promptLibrary = suggestedPrompts || state.promptLibrary;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', 'The AI request failed. Check the API server, then try again.');
+      }
+
+      renderAll();
+    }
+
+    async function openUiAction(uiAction) {
+      state.panel = {
+        open: true,
+        surface: uiAction.surface,
+        title: uiAction.title,
+        payload: { ...(uiAction.payload || {}) }
+      };
+
+      if (uiAction.surface === 'portfolio_positions') {
+        state.panel.payload.positions = await fetchPositions();
+      }
+
+      renderPanel();
+    }
+
+    async function openSavedTemplate(template) {
+      state.panel = {
+        open: true,
+        surface: template.surface,
+        title: template.title,
+        payload: { ...(template.payload || {}) }
+      };
+      if (template.surface === 'portfolio_positions') {
+        state.panel.payload.positions = await fetchPositions();
+      }
+      appendMessage('assistant', `Reopened saved view “${template.name}”.`);
+      renderAll();
+    }
+
+    async function fetchPositions() {
+      try {
+        const response = await fetch(apiUrl('/api/v1/portfolio/positions'));
+        if (!response.ok) {
+          throw new Error(`Positions request failed: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', 'Positions could not be loaded from the portfolio API.');
+        return [];
+      }
+    }
+
+    async function handlePanelSubmit(event) {
+      const form = event.target.closest('form');
+      if (!form || form.dataset.surface !== 'bond_trade_capture') return;
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const useExisting = formData.get('useExistingInstrument') === 'true';
+
+      const draft = {
+        useExistingInstrument: useExisting,
+        existingInstrumentId: formData.get('existingInstrumentId') || '',
+        instrumentName: formData.get('instrumentName') || '',
+        isin: (formData.get('isin') || '').toString().trim(),
+        currency: formData.get('currency') || 'CAD',
+        issueDate: formData.get('issueDate') || '',
+        maturityDate: formData.get('maturityDate') || '',
+        couponRate: Number(formData.get('couponRate') || 0),
+        couponFrequency: formData.get('couponFrequency') || 'semi_annual',
+        dayCountConvention: formData.get('dayCountConvention') || 'ACT_ACT_ICMA',
+        settlementDays: Number(formData.get('settlementDays') || 2),
+        faceValue: Number(formData.get('faceValue') || 1000),
+        minimumDenomination: Number(formData.get('minimumDenomination') || 1000),
+        increment: Number(formData.get('increment') || 1000),
+        buySell: formData.get('buySell') || 'BUY',
+        notional: Number(formData.get('notional') || 1000000),
+        effectiveDate: formData.get('effectiveDate') || '',
+        bookId: formData.get('bookId') || '',
+        counterpartyId: formData.get('counterpartyId') || ''
+      };
+
+      state.panel.payload = { ...state.panel.payload, ...draft };
+      renderPanel();
+
+      try {
+        let instrumentId = draft.existingInstrumentId;
+
+        if (!useExisting) {
+          const instrumentResponse = await fetch(apiUrl('/api/v1/instruments'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              instrument_type: 'bond',
+              name: draft.instrumentName || buildBondName(draft),
+              currency: draft.currency,
+              maturity_date: draft.maturityDate,
+              details: {
+                face_value: draft.faceValue,
+                currency: draft.currency,
+                issue_date: draft.issueDate,
+                maturity_date: draft.maturityDate,
+                issuer: { name: 'Government of Canada' },
+                ...(draft.isin ? { isin: draft.isin } : {}),
+                coupon_rate: draft.couponRate,
+                coupon_frequency: draft.couponFrequency,
+                day_count_convention: draft.dayCountConvention,
+                settlement_days: draft.settlementDays,
+                minimum_denomination: draft.minimumDenomination,
+                increment: draft.increment
+              },
+              extensions: draft.isin ? { isin: draft.isin } : {}
+            })
+          });
+
+          if (!instrumentResponse.ok) {
+            throw new Error(`Instrument creation failed: ${instrumentResponse.status}`);
+          }
+
+          const instrument = await instrumentResponse.json();
+          instrumentId = instrument.id;
+        }
+
+        const dealResponse = await fetch(apiUrl('/api/v1/deals'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_type: 'spot',
+            product_subtype: 'vanilla',
+            asset_class: 'fixed_income',
+            notional: draft.notional,
+            currency: draft.currency,
+            counterparty_id: draft.counterpartyId,
+            book_id: draft.bookId,
+            instrument_id: instrumentId,
+            effective_date: draft.effectiveDate,
+            details: {
+              coupon_rate: String(draft.couponRate ?? 0),
+              face_value: draft.faceValue,
+              issue_date: draft.issueDate,
+              maturity_date: draft.maturityDate,
+              payment_frequency: draft.couponFrequency,
+              day_count: draft.dayCountConvention
+            },
+            extensions: {
+              source_system: {
+                system_name: 'agent_workbench'
+              }
+            },
+            buy_sell: draft.buySell
+          })
+        });
+
+        if (!dealResponse.ok) {
+          throw new Error(`Deal capture failed: ${dealResponse.status}`);
+        }
+
+        const deal = await dealResponse.json();
+        appendMessage(
+          'assistant',
+          `Bond deal booked successfully. Deal ${deal.id} is now available for downstream workflow and position reporting.`
+        );
+        state.panel.payload.lastBookedDealId = deal.id;
+        const refreshedBonds = await fetch(apiUrl('/api/v1/dev/workbench/bootstrap'));
+        if (refreshedBonds.ok) {
+          state.bootstrap = await refreshedBonds.json();
+        }
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', `Booking failed. ${error.message}`);
+      }
+
+      renderAll();
+    }
+
+    function handlePanelClick(event) {
+      const action = event.target.closest('[data-action]');
+      if (!action) return;
+
+      if (action.dataset.action === 'ask-ai-fill') {
+        const prompt = buildDraftPrompt();
+        elements.composerInput.value = prompt;
+        elements.composerInput.focus();
+      }
+
+      if (action.dataset.action === 'toggle-capture-mode') {
+        state.panel.payload.useExistingInstrument = action.dataset.value === 'true';
+        renderPanel();
+      }
+
+      if (action.dataset.action === 'lookup-bond-isin') {
+        lookupBondByIsin();
+      }
+    }
+
+    async function handlePanelChange(event) {
+      const form = event.target.closest('form');
+      if (!form || form.dataset.surface !== 'bond_trade_capture') return;
+
+      if (event.target.name === 'existingInstrumentId') {
+        const selectedId = (event.target.value || '').toString().trim();
+        if (selectedId) {
+          await hydrateBondDraftFromInstrument(selectedId);
+        }
+      }
+    }
+
+    async function lookupBondByIsin() {
+      const form = elements.panelBody.querySelector('form[data-surface="bond_trade_capture"]');
+      if (!form) return;
+
+      const formData = new FormData(form);
+      const rawIsin = (formData.get('isin') || '').toString().trim();
+      if (!rawIsin) {
+        appendMessage('assistant', 'Provide an ISIN before searching for an existing bond.');
+        return;
+      }
+
+      try {
+        const query = new URLSearchParams({
+          type: 'bond',
+          q: rawIsin,
+          identifier_kind: 'isin',
+          limit: '20'
+        });
+        const response = await fetch(apiUrl(`/api/v1/instruments?${query.toString()}`));
+        if (!response.ok) {
+          throw new Error(`Bond lookup failed: ${response.status}`);
+        }
+
+        const instruments = await response.json();
+        if (!Array.isArray(instruments) || instruments.length === 0) {
+          appendMessage('assistant', `No bond instrument found for ISIN ${rawIsin}.`);
+          return;
+        }
+
+        state.bootstrap.bonds = instruments.map((instrument) => {
+          const maturity = instrument.maturityDate || instrument.maturity_date || '';
+          const currency = instrument.currency || '';
+          const foundIsin = instrument.identifiers?.isin || instrument.details?.isin || rawIsin;
+          return {
+            id: instrument.id,
+            label: instrument.name,
+            description: [currency, maturity, `ISIN ${foundIsin}`].filter(Boolean).join(' • ')
+          };
+        });
+
+        state.panel.payload = {
+          ...state.panel.payload,
+          useExistingInstrument: true,
+          existingInstrumentId: instruments[0].id,
+          isin: rawIsin
+        };
+        await hydrateBondDraftFromInstrument(instruments[0].id);
+        appendMessage('assistant', `Found ${instruments.length} bond instrument(s) for ISIN ${rawIsin}.`);
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', `Bond lookup failed. ${error.message}`);
+      }
+    }
+
+    async function hydrateBondDraftFromInstrument(instrumentId) {
+      try {
+        const response = await fetch(apiUrl(`/api/v1/instruments/${instrumentId}`));
+        if (!response.ok) {
+          throw new Error(`Instrument fetch failed: ${response.status}`);
+        }
+
+        const instrument = await response.json();
+        const details = instrument.details || {};
+        const identifiers = instrument.identifiers || {};
+        const priorPayload = state.panel.payload || {};
+
+        state.panel.payload = {
+          ...priorPayload,
+          useExistingInstrument: true,
+          existingInstrumentId: instrument.id || instrumentId,
+          instrumentName: instrument.name || priorPayload.instrumentName || '',
+          isin: (identifiers.isin || details.isin || priorPayload.isin || '').toString(),
+          currency: (instrument.currency || details.currency || priorPayload.currency || 'CAD').toString(),
+          issueDate: (details.issue_date || details.issueDate || priorPayload.issueDate || '').toString(),
+          maturityDate: (
+            instrument.maturityDate
+            || instrument.maturity_date
+            || details.maturity_date
+            || details.maturityDate
+            || priorPayload.maturityDate
+            || ''
+          ).toString(),
+          couponRate: coerceNumber(details.coupon_rate ?? details.couponRate, priorPayload.couponRate ?? 0),
+          couponFrequency: (
+            details.coupon_frequency
+            || details.couponFrequency
+            || priorPayload.couponFrequency
+            || 'semi_annual'
+          ).toString(),
+          dayCountConvention: (
+            details.day_count_convention
+            || details.dayCountConvention
+            || priorPayload.dayCountConvention
+            || 'ACT_ACT_ICMA'
+          ).toString(),
+          settlementDays: coerceNumber(details.settlement_days ?? details.settlementDays, priorPayload.settlementDays ?? 2),
+          faceValue: coerceNumber(details.face_value ?? details.faceValue, priorPayload.faceValue ?? 1000),
+          minimumDenomination: coerceNumber(details.minimum_denomination ?? details.minimumDenomination, priorPayload.minimumDenomination ?? 1000),
+          increment: coerceNumber(details.increment, priorPayload.increment ?? 1000)
+        };
+
+        renderPanel();
+      } catch (error) {
+        console.error(error);
+        appendMessage('assistant', `Could not load selected instrument details. ${error.message}`);
+      }
+    }
+
+    function coerceNumber(value, fallback) {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : Number(fallback);
+    }
+
+    function saveCurrentPanel() {
+      if (!state.panel.open || !state.panel.surface) return;
+
+      if (state.panel.surface === 'bond_trade_capture') {
+        state.panel.payload = {
+          ...state.panel.payload,
+          ...readCurrentBondDraft()
+        };
+      }
+
+      const name = window.prompt('Save this view as', defaultTemplateName());
+      if (!name) return;
+
+      const entry = {
+        id: crypto.randomUUID(),
+        name,
+        title: state.panel.title,
+        surface: state.panel.surface,
+        payload: structuredClone(state.panel.payload),
+        createdAt: new Date().toISOString()
+      };
+
+      state.templates.unshift(entry);
+      persistTemplates();
+      appendMessage('assistant', `Saved “${name}” for later reuse.`);
+      renderTemplates();
+      renderConversation();
+    }
+
+    function closePanel() {
+      state.panel = { open: false, surface: null, title: '', payload: {} };
+      renderPanel();
+    }
+
+    function appendMessage(role, content, uiAction = null, suggestedPrompts = []) {
+      state.messages.push({
+        id: crypto.randomUUID(),
+        role,
+        content,
+        uiAction,
+        suggestedPrompts
+      });
+    }
+
+    function renderAll() {
+      renderSession();
+      renderConversation();
+      renderPromptLibrary();
+      renderTemplates();
+      renderPanel();
+      syncFormControls();
+    }
+
+    function renderSession() {
+      elements.sessionChip.textContent = state.sessionStatus;
+      elements.sessionChip.dataset.status = state.sessionStatus.toLowerCase().includes('ready') ? 'ready' : 'pending';
+    }
+
+    function renderConversation() {
+      elements.conversationLog.innerHTML = state.messages.map((message) => `
+        <article class="message ${message.role}">
+          <div class="message-role">${message.role === 'assistant' ? 'Agent' : PERSONA_CONFIG[state.persona].label}</div>
+          <div class="message-body">
+            <p>${escapeHtml(message.content)}</p>
+            ${message.uiAction ? `
+              <button class="surface-button" type="button" data-open-surface="${message.id}">
+                Open ${formatSurfaceLabel(message.uiAction.surface)}
+              </button>
+            ` : ''}
+          </div>
+          ${message.suggestedPrompts?.length ? `
+            <div class="message-prompts">
+              ${message.suggestedPrompts.map((prompt) => `
+                <button type="button" class="mini-chip" data-message-prompt="${escapeAttribute(prompt)}">${escapeHtml(prompt)}</button>
+              `).join('')}
+            </div>
+          ` : ''}
+        </article>
+      `).join('');
+
+      elements.conversationLog.querySelectorAll('[data-open-surface]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const message = state.messages.find((entry) => entry.id === button.dataset.openSurface);
+          if (message?.uiAction) {
+            await openUiAction(message.uiAction);
+          }
+        });
+      });
+
+      elements.conversationLog.querySelectorAll('[data-message-prompt]').forEach((button) => {
+        button.addEventListener('click', () => {
+          elements.composerInput.value = button.dataset.messagePrompt;
+          elements.composerInput.focus();
+        });
+      });
+
+      elements.conversationLog.scrollTop = elements.conversationLog.scrollHeight;
+      elements.composerHint.textContent = state.panel.open
+        ? `Panel open: ${formatSurfaceLabel(state.panel.surface)}`
+        : 'No panel open';
+    }
+
+    function renderPromptLibrary() {
+      elements.promptChips.innerHTML = state.promptLibrary.map((prompt) => `
+        <button class="prompt-chip" type="button" data-prompt="${escapeAttribute(prompt)}">${escapeHtml(prompt)}</button>
+      `).join('');
+    }
+
+    function renderTemplates() {
+      if (!state.templates.length) {
+        elements.savedTemplates.innerHTML = '<p class="empty-state">No saved views yet.</p>';
+        return;
+      }
+
+      elements.savedTemplates.innerHTML = state.templates.map((template) => `
+        <button class="saved-template" type="button" data-template-id="${template.id}">
+          <strong>${escapeHtml(template.name)}</strong>
+          <span>${escapeHtml(formatSurfaceLabel(template.surface))}</span>
+        </button>
+      `).join('');
+    }
+
+    function renderPanel() {
+      const open = state.panel.open;
+      elements.slidePanel.classList.toggle('open', open);
+      elements.panelBackdrop.classList.toggle('open', open);
+      elements.slidePanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+
+      if (!open) {
+        elements.panelSurface.textContent = 'Workbench Surface';
+        elements.panelTitle.textContent = 'Panel';
+        elements.panelBody.innerHTML = '';
+        return;
+      }
+
+      elements.panelSurface.textContent = formatSurfaceLabel(state.panel.surface);
+      elements.panelTitle.textContent = state.panel.title;
+
+      if (state.panel.surface === 'bond_trade_capture') {
+        elements.panelBody.innerHTML = renderBondCapturePanel();
+        return;
+      }
+
+      if (state.panel.surface === 'portfolio_positions') {
+        elements.panelBody.innerHTML = renderPortfolioPanel();
+        return;
+      }
+
+      elements.panelBody.innerHTML = `
+        <div class="panel-section">
+          <p>No structured renderer is registered for this surface yet.</p>
+        </div>
+      `;
+    }
+
+    function renderBondCapturePanel() {
+      const payload = {
+        useExistingInstrument: false,
+        currency: 'CAD',
+        couponFrequency: 'semi_annual',
+        dayCountConvention: 'ACT_ACT_ICMA',
+        settlementDays: 2,
+        faceValue: 1000,
+        minimumDenomination: 1000,
+        increment: 1000,
+        buySell: 'BUY',
+        notional: 1000000,
+        issueDate: new Date().toISOString().slice(0, 10),
+        effectiveDate: new Date().toISOString().slice(0, 10),
+        ...state.panel.payload
+      };
+
+      const books = optionsMarkup(state.bootstrap.books, payload.bookId);
+      const counterparties = optionsMarkup(state.bootstrap.counterparties, payload.counterpartyId);
+      const bonds = optionsMarkup(state.bootstrap.bonds, payload.existingInstrumentId);
+
+      return `
+        <form class="panel-form" data-surface="bond_trade_capture">
+          <div class="panel-section">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Capture Mode</p>
+                <h4>Start from an existing bond or create a new one.</h4>
+                <p class="section-copy">Choose whether the trade should reference an existing instrument or create a new bond definition as part of the ticket.</p>
+              </div>
+              <button type="button" class="ghost-button" data-action="ask-ai-fill">Ask AI to fill</button>
+            </div>
+
+            <div class="mode-switch">
+              <button type="button" class="${payload.useExistingInstrument ? 'ghost-button' : 'ghost-button active-mode'}" data-action="toggle-capture-mode" data-value="false">Create new bond</button>
+              <button type="button" class="${payload.useExistingInstrument ? 'ghost-button active-mode' : 'ghost-button'}" data-action="toggle-capture-mode" data-value="true">Use existing bond</button>
+            </div>
+
+            <input type="hidden" name="useExistingInstrument" value="${payload.useExistingInstrument ? 'true' : 'false'}" />
+
+            ${payload.useExistingInstrument ? `
+              <label class="field">
+                <span>ISIN lookup</span>
+                <div class="inline-controls">
+                  <input name="isin" type="text" value="${escapeAttribute(payload.isin || '')}" placeholder="US9128285M81" />
+                  <button class="ghost-button" type="button" data-action="lookup-bond-isin">Search</button>
+                </div>
+              </label>
+              <label class="field">
+                <span>Existing bond instrument</span>
+                <select name="existingInstrumentId">${bonds}</select>
+              </label>
+            ` : `
+              <div class="form-grid">
+                <label class="field">
+                  <span>Instrument name</span>
+                  <input name="instrumentName" type="text" value="${escapeAttribute(payload.instrumentName || '')}" placeholder="GoC 3.5% 2030" />
+                </label>
+                <label class="field">
+                  <span>ISIN</span>
+                  <input name="isin" type="text" value="${escapeAttribute(payload.isin || '')}" placeholder="CA0000000001" />
+                </label>
+                <label class="field">
+                  <span>Currency</span>
+                  <input name="currency" type="text" value="${escapeAttribute(payload.currency)}" />
+                </label>
+                <label class="field">
+                  <span>Coupon rate</span>
+                  <input name="couponRate" type="number" step="0.0001" value="${payload.couponRate}" />
+                </label>
+                <label class="field">
+                  <span>Issue date</span>
+                  <input name="issueDate" type="date" value="${escapeAttribute(payload.issueDate)}" />
+                </label>
+                <label class="field">
+                  <span>Maturity date</span>
+                  <input name="maturityDate" type="date" value="${escapeAttribute(payload.maturityDate)}" />
+                </label>
+                <label class="field">
+                  <span>Coupon frequency</span>
+                  <select name="couponFrequency">
+                    ${selectOptions(['monthly', 'quarterly', 'semi_annual', 'annual'], payload.couponFrequency)}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Day count</span>
+                  <select name="dayCountConvention">
+                    ${selectOptions(['ACT_360', 'ACT_365', 'ACT_365F', 'ACT_ACT_ISDA', 'ACT_ACT_ICMA', '30_360', '30E_360'], payload.dayCountConvention)}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Settlement days</span>
+                  <input name="settlementDays" type="number" min="0" value="${payload.settlementDays}" />
+                </label>
+                <label class="field">
+                  <span>Face value</span>
+                  <input name="faceValue" type="number" min="1" value="${payload.faceValue}" />
+                </label>
+                <label class="field">
+                  <span>Minimum denomination</span>
+                  <input name="minimumDenomination" type="number" min="1" value="${payload.minimumDenomination}" />
+                </label>
+                <label class="field">
+                  <span>Increment</span>
+                  <input name="increment" type="number" min="1" value="${payload.increment}" />
+                </label>
+              </div>
+            `}
+          </div>
+
+          <div class="panel-section">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Trade Ticket</p>
+                <h4>Book the bond deal against a real book and counterparty.</h4>
+                <p class="section-copy">These fields drive the actual deal capture request and stay visible while you continue refining details in chat.</p>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span>Direction</span>
+                <select name="buySell">${selectOptions(['BUY', 'SELL'], payload.buySell)}</select>
+              </label>
+              <label class="field">
+                <span>Notional</span>
+                <input name="notional" type="number" min="1" value="${payload.notional}" />
+              </label>
+              <label class="field">
+                <span>Effective date</span>
+                <input name="effectiveDate" type="date" value="${escapeAttribute(payload.effectiveDate)}" />
+              </label>
+              <label class="field">
+                <span>Book</span>
+                <select name="bookId">${books}</select>
+              </label>
+              <label class="field span-2">
+                <span>Counterparty</span>
+                <select name="counterpartyId">${counterparties}</select>
+              </label>
+            </div>
+          </div>
+
+          ${payload.lastBookedDealId ? `
+            <div class="success-banner">
+              Latest booked deal: <strong>${escapeHtml(payload.lastBookedDealId)}</strong>
+            </div>
+          ` : ''}
+
+          <div class="panel-footer">
+            <p>The agent can keep refining this draft in chat while the form stays visible.</p>
+            <button class="primary-button" type="submit">Book bond deal</button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderPortfolioPanel() {
+      const positions = state.panel.payload.positions || [];
+      const totalMarketValue = positions.reduce((sum, position) => sum + Number(position.marketValue || 0), 0);
+      const totalDayPnl = positions.reduce((sum, position) => sum + Number(position.dayPnl || 0), 0);
+      const totalNotional = positions.reduce((sum, position) => sum + Number(position.notionalAggregate || 0), 0);
+
+      return `
+        <div class="panel-section">
+          <div class="metric-grid">
+            <div class="metric-card">
+              <span>Total positions</span>
+              <strong>${positions.length}</strong>
+            </div>
+            <div class="metric-card">
+              <span>Total notional</span>
+              <strong>${formatCurrency(totalNotional)}</strong>
+            </div>
+            <div class="metric-card">
+              <span>Market value</span>
+              <strong>${formatCurrency(totalMarketValue)}</strong>
+            </div>
+            <div class="metric-card ${totalDayPnl >= 0 ? 'positive' : 'negative'}">
+              <span>Day P&amp;L</span>
+              <strong>${formatCurrency(totalDayPnl)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Portfolio Positions</p>
+              <h4>Structured report from the live position API.</h4>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Asset class</th>
+                  <th>Currency</th>
+                  <th>Quantity</th>
+                  <th>Market value</th>
+                  <th>Day P&amp;L</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${positions.length ? positions.map((position) => `
+                  <tr>
+                    <td>${escapeHtml(position.productType)}</td>
+                    <td>${escapeHtml(position.assetClass)}</td>
+                    <td>${escapeHtml(position.currency)}</td>
+                    <td>${formatNumber(position.quantity)}</td>
+                    <td>${formatCurrency(position.marketValue)}</td>
+                    <td class="${Number(position.dayPnl) >= 0 ? 'positive-text' : 'negative-text'}">${formatCurrency(position.dayPnl)}</td>
+                  </tr>
+                `).join('') : `
+                  <tr>
+                    <td colspan="6" class="empty-cell">No positions were returned.</td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <p>Save this report to reopen the same controlled surface later.</p>
+        </div>
+      `;
+    }
+
+    function buildDraftPrompt() {
+      if (state.panel.surface !== 'bond_trade_capture') {
+        return 'Help me refine the current workbench panel.';
+      }
+      const payload = {
+        ...(state.panel.payload || {}),
+        ...readCurrentBondDraft()
+      };
+      return `Fill the remaining bond trade fields using this draft: ISIN ${payload.isin || 'unknown'}, coupon ${payload.couponRate || 0}, maturity ${payload.maturityDate || 'unknown'}, notional ${payload.notional || 0}, direction ${payload.buySell || 'BUY'}.`;
+    }
+
+    function readCurrentBondDraft() {
+      const form = elements.panelBody.querySelector('form[data-surface="bond_trade_capture"]');
+      if (!form) return {};
+      const formData = new FormData(form);
+      return {
+        useExistingInstrument: formData.get('useExistingInstrument') === 'true',
+        existingInstrumentId: formData.get('existingInstrumentId') || '',
+        instrumentName: formData.get('instrumentName') || '',
+        isin: formData.get('isin') || '',
+        currency: formData.get('currency') || 'CAD',
+        issueDate: formData.get('issueDate') || '',
+        maturityDate: formData.get('maturityDate') || '',
+        couponRate: Number(formData.get('couponRate') || 0),
+        couponFrequency: formData.get('couponFrequency') || 'semi_annual',
+        dayCountConvention: formData.get('dayCountConvention') || 'ACT_ACT_ICMA',
+        settlementDays: Number(formData.get('settlementDays') || 2),
+        faceValue: Number(formData.get('faceValue') || 1000),
+        minimumDenomination: Number(formData.get('minimumDenomination') || 1000),
+        increment: Number(formData.get('increment') || 1000),
+        buySell: formData.get('buySell') || 'BUY',
+        notional: Number(formData.get('notional') || 1000000),
+        effectiveDate: formData.get('effectiveDate') || '',
+        bookId: formData.get('bookId') || '',
+        counterpartyId: formData.get('counterpartyId') || ''
+      };
+    }
+
+    function buildBondName(draft) {
+      const couponPercent = Number(draft.couponRate || 0) * 100;
+      const year = draft.maturityDate ? draft.maturityDate.slice(0, 4) : 'Bond';
+      return `GoC ${couponPercent.toFixed(2)}% ${year}`;
+    }
+
+    function defaultTemplateName() {
+      return state.panel.surface === 'portfolio_positions' ? 'Portfolio positions view' : 'Bond trade draft';
+    }
+
+    function optionsMarkup(options, selectedValue) {
+      if (!options?.length) {
+        return '<option value="">No options available</option>';
+      }
+      return options.map((option) => `
+        <option value="${option.id}" ${option.id === selectedValue ? 'selected' : ''}>
+          ${escapeHtml(option.label)}${option.description ? ` — ${escapeHtml(option.description)}` : ''}
+        </option>
+      `).join('');
+    }
+
+    function selectOptions(options, selectedValue) {
+      return options.map((option) => `
+        <option value="${option}" ${option === selectedValue ? 'selected' : ''}>${option}</option>
+      `).join('');
+    }
+
+    function syncFormControls() {
+      elements.apiBase.value = state.apiBase;
+      elements.personaSwitch.querySelectorAll('[data-role]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.role === state.persona);
+      });
+    }
+
+    function apiUrl(path) {
+      return `${state.apiBase}${path}`;
+    }
+
+    function persistTemplates() {
+      localStorage.setItem(STORAGE_KEYS.templates, JSON.stringify(state.templates));
+    }
+
+    function loadTemplates() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEYS.templates) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function formatSurfaceLabel(surface) {
+      return surface.replaceAll('_', ' ');
+    }
+
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'CAD',
+        maximumFractionDigits: 0
+      }).format(Number(value || 0));
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(value || 0));
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replaceAll('`', '&#96;');
+    }
+  </script>
+
+  <style is:global>
+    :root {
+      --workbench-bg: #f4efe5;
+      --workbench-panel: rgba(255, 250, 245, 0.92);
+      --workbench-card: rgba(255, 255, 255, 0.8);
+      --workbench-border: rgba(73, 52, 30, 0.14);
+      --workbench-ink: #21180f;
+      --workbench-muted: #6f6255;
+      --workbench-accent: #135d66;
+      --workbench-accent-soft: #d7ebe6;
+      --workbench-accent-strong: #0f4f57;
+      --workbench-highlight: #f6e5bf;
+      --workbench-positive: #0d7c4a;
+      --workbench-negative: #a23b34;
+      --workbench-shadow: 0 24px 60px rgba(48, 30, 14, 0.12);
+    }
+
+    .workbench-page {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(245, 205, 152, 0.35), transparent 28rem),
+        radial-gradient(circle at top right, rgba(19, 93, 102, 0.18), transparent 24rem),
+        linear-gradient(180deg, #f9f2e9 0%, var(--workbench-bg) 100%);
+      color: var(--workbench-ink);
+      padding: 1.5rem;
+    }
+
+    .workbench-shell {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .workbench-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--workbench-border);
+      border-radius: 1.5rem;
+      background: rgba(255, 247, 240, 0.82);
+      box-shadow: var(--workbench-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .workbench-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-mark {
+      width: 3rem;
+      height: 3rem;
+      display: grid;
+      place-items: center;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, #21180f, #135d66);
+      color: #fff7ef;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .workbench-brand h1,
+    .conversation-hero h2,
+    .rail-card h2,
+    .section-head h4,
+    .panel-head h3 {
+      margin: 0;
+      font-family: "Times New Roman", Georgia, serif;
+      letter-spacing: -0.02em;
+    }
+
+    .workbench-brand h1 {
+      font-size: clamp(1.6rem, 2vw, 2.1rem);
+    }
+
+    .eyebrow,
+    .rail-label {
+      margin: 0 0 0.35rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--workbench-muted);
+    }
+
+    .workbench-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .api-control {
+      display: grid;
+      gap: 0.25rem;
+      font-size: 0.72rem;
+      color: var(--workbench-muted);
+    }
+
+    .api-control input {
+      width: 15rem;
+    }
+
+    .persona-switch,
+    .mode-switch {
+      display: inline-flex;
+      gap: 0.35rem;
+      padding: 0.25rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--workbench-border);
+    }
+
+    .persona,
+    .ghost-button,
+    .primary-button,
+    .surface-button,
+    .prompt-chip,
+    .saved-template,
+    .mini-chip,
+    .link-button {
+      border: none;
+      cursor: pointer;
+      transition: transform 180ms ease, background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+      font: inherit;
+    }
+
+    .persona {
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--workbench-muted);
+    }
+
+    .persona.active,
+    .active-mode {
+      background: var(--workbench-accent);
+      color: #f7fffd;
+    }
+
+    .session-chip {
+      padding: 0.7rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid var(--workbench-border);
+      font-size: 0.82rem;
+      color: var(--workbench-muted);
+    }
+
+    .session-chip[data-status="ready"] {
+      background: var(--workbench-accent-soft);
+      color: var(--workbench-accent);
+      border-color: rgba(19, 93, 102, 0.2);
+    }
+
+    .workbench-layout {
+      display: grid;
+      grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+      gap: 1.25rem;
+      min-height: calc(100vh - 10rem);
+    }
+
+    .workbench-rail,
+    .conversation-panel,
+    .panel-frame {
+      border: 1px solid var(--workbench-border);
+      background: var(--workbench-panel);
+      box-shadow: var(--workbench-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .workbench-rail {
+      border-radius: 1.5rem;
+      padding: 1rem;
+      display: grid;
+      gap: 0.9rem;
+      align-content: start;
+    }
+
+    .rail-card,
+    .conversation-hero,
+    .message,
+    .panel-section,
+    .metric-card {
+      border-radius: 1.2rem;
+      border: 1px solid rgba(73, 52, 30, 0.08);
+      background: var(--workbench-card);
+    }
+
+    .rail-card {
+      padding: 1rem;
+      display: grid;
+      gap: 0.6rem;
+    }
+
+    .rail-head,
+    .section-head,
+    .composer-actions,
+    .panel-head,
+    .panel-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .rail-copy,
+    .notes-list,
+    .conversation-hero p,
+    .message-body p,
+    .panel-footer p {
+      margin: 0;
+      color: var(--workbench-muted);
+      line-height: 1.6;
+    }
+
+    .section-copy {
+      margin: 0.35rem 0 0;
+      color: var(--workbench-muted);
+      line-height: 1.55;
+      max-width: 46rem;
+    }
+
+    .notes-list {
+      padding-left: 1rem;
+    }
+
+    .chip-list,
+    .saved-list,
+    .message-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .prompt-chip,
+    .mini-chip,
+    .surface-button {
+      padding: 0.6rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(19, 93, 102, 0.12);
+      color: var(--workbench-accent);
+      text-align: left;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .message-prompts {
+      padding-top: 0.15rem;
+    }
+
+    .mini-chip {
+      background: linear-gradient(180deg, #fffdf8 0%, #f5ede2 100%);
+      border-color: rgba(19, 93, 102, 0.18);
+      color: var(--workbench-accent-strong);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .surface-button {
+      justify-self: start;
+      background: linear-gradient(135deg, rgba(19, 93, 102, 0.12), rgba(215, 235, 230, 0.7));
+      border-color: rgba(19, 93, 102, 0.24);
+    }
+
+    .surface-button::before {
+      content: "Open panel";
+      display: inline-block;
+      margin-right: 0.45rem;
+      padding-right: 0.45rem;
+      border-right: 1px solid rgba(19, 93, 102, 0.16);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .saved-template {
+      width: 100%;
+      display: grid;
+      gap: 0.2rem;
+      text-align: left;
+      padding: 0.85rem 1rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(73, 52, 30, 0.08);
+      color: var(--workbench-ink);
+    }
+
+    .saved-template span,
+    .empty-state,
+    .message-role {
+      font-size: 0.82rem;
+      color: var(--workbench-muted);
+    }
+
+    .conversation-panel {
+      border-radius: 1.6rem;
+      padding: 1rem;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 1rem;
+      min-height: 0;
+    }
+
+    .conversation-hero {
+      padding: 1.1rem 1.2rem;
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .conversation-log {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      gap: 0.8rem;
+      padding-right: 0.25rem;
+    }
+
+    .message {
+      padding: 1rem 1.1rem;
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, rgba(19, 93, 102, 0.14), rgba(255, 255, 255, 0.84));
+    }
+
+    .message.assistant {
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .message-body {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .message.assistant .message-body p {
+      color: #3c3024;
+    }
+
+    .composer {
+      display: grid;
+      gap: 0.8rem;
+      padding: 1rem;
+      border-radius: 1.2rem;
+      border: 1px solid rgba(73, 52, 30, 0.1);
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(73, 52, 30, 0.14);
+      background: rgba(255, 252, 247, 0.95);
+      padding: 0.75rem 0.9rem;
+      color: var(--workbench-ink);
+      font: inherit;
+      outline: none;
+      appearance: none;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 6rem;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: rgba(19, 93, 102, 0.42);
+      box-shadow: 0 0 0 4px rgba(19, 93, 102, 0.1);
+      background: #fffefb;
+    }
+
+    .composer-hint {
+      color: var(--workbench-muted);
+      font-size: 0.84rem;
+    }
+
+    .primary-button,
+    .ghost-button {
+      padding: 0.75rem 1rem;
+      border-radius: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .primary-button {
+      background: var(--workbench-accent);
+      color: #f7fffd;
+      border: 1px solid rgba(19, 93, 102, 0.38);
+      box-shadow: 0 12px 28px rgba(19, 93, 102, 0.18);
+    }
+
+    .ghost-button,
+    .link-button {
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--workbench-muted);
+      border: 1px solid rgba(73, 52, 30, 0.08);
+    }
+
+    .link-button {
+      padding: 0;
+      background: none;
+      border: none;
+      color: var(--workbench-accent);
+    }
+
+    .panel-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(24, 17, 10, 0.26);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+
+    .slide-panel {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      bottom: 1rem;
+      width: min(56rem, calc(100vw - 2rem));
+      transform: translateX(105%);
+      transition: transform 240ms ease;
+      pointer-events: none;
+    }
+
+    .slide-panel.open,
+    .panel-backdrop.open {
+      pointer-events: auto;
+    }
+
+    .slide-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-backdrop.open {
+      opacity: 1;
+    }
+
+    .panel-frame {
+      height: 100%;
+      border-radius: 1.8rem;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(73, 52, 30, 0.08);
+      background: rgba(255, 252, 247, 0.88);
+    }
+
+    .panel-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+      align-content: start;
+    }
+
+    .panel-section {
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 249, 241, 0.88) 100%);
+    }
+
+    .panel-form,
+    .form-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 0.4rem;
+      color: var(--workbench-muted);
+      font-size: 0.9rem;
+    }
+
+    .field {
+      padding: 0.85rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(73, 52, 30, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      align-content: start;
+    }
+
+    .field > span {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #786a5d;
+      font-weight: 700;
+    }
+
+    .mode-switch {
+      width: fit-content;
+      max-width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .mode-switch .ghost-button {
+      border-radius: 999px;
+      background: transparent;
+    }
+
+    .mode-switch .ghost-button.active-mode {
+      background: var(--workbench-accent);
+      border-color: rgba(19, 93, 102, 0.4);
+      color: #f7fffd;
+    }
+
+    .span-2 {
+      grid-column: span 2;
+    }
+
+    .inline-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .metric-card {
+      padding: 0.95rem;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .metric-card strong {
+      font-size: 1.35rem;
+    }
+
+    .metric-card span {
+      color: var(--workbench-muted);
+      font-size: 0.84rem;
+    }
+
+    .positive strong,
+    .positive-text {
+      color: var(--workbench-positive);
+    }
+
+    .negative strong,
+    .negative-text {
+      color: var(--workbench-negative);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 1rem;
+      border: 1px solid rgba(73, 52, 30, 0.08);
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 40rem;
+    }
+
+    th,
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(73, 52, 30, 0.06);
+      text-align: left;
+      font-size: 0.92rem;
+    }
+
+    th {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--workbench-muted);
+    }
+
+    .success-banner {
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+      background:
+        linear-gradient(135deg, rgba(19, 93, 102, 0.14), rgba(215, 235, 230, 0.72));
+      color: var(--workbench-accent);
+      border: 1px solid rgba(19, 93, 102, 0.16);
+    }
+
+    .panel-footer .primary-button {
+      min-width: 12rem;
+      padding-inline: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .empty-cell {
+      text-align: center;
+      color: var(--workbench-muted);
+    }
+
+    .persona:hover,
+    .ghost-button:hover,
+    .primary-button:hover,
+    .surface-button:hover,
+    .prompt-chip:hover,
+    .saved-template:hover,
+    .mini-chip:hover {
+      transform: translateY(-1px);
+    }
+
+    .prompt-chip:hover,
+    .mini-chip:hover,
+    .surface-button:hover {
+      border-color: rgba(19, 93, 102, 0.34);
+      background: linear-gradient(180deg, #fffefb 0%, var(--workbench-highlight) 100%);
+      color: #0f4f57;
+    }
+
+    .saved-template:hover,
+    .field:hover,
+    .panel-section:hover {
+      border-color: rgba(19, 93, 102, 0.16);
+    }
+
+    @media (max-width: 1100px) {
+      .workbench-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .workbench-page {
+        padding: 0.75rem;
+      }
+
+      .workbench-topbar,
+      .conversation-hero,
+      .panel-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .api-control input {
+        width: 100%;
+      }
+
+      .form-grid,
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .span-2 {
+        grid-column: span 1;
+      }
+
+      .slide-panel {
+        inset: 0;
+        width: 100vw;
+      }
+    }
+  </style>
+</Layout>

@@ -1,0 +1,78 @@
+---
+// Lifecycle.astro — narrative walk through one trade
+const beats = [
+  {
+    state: 'Captured',
+    role: 'Front office',
+    line: 'A trader books a 5Y USD interest-rate swap with ABC Bank. One screen, one click — or one sentence to the AI desk assistant.',
+  },
+  {
+    state: 'Validated',
+    role: 'STP engine',
+    line: 'Limits, counterparty, product schema and credit checks run in milliseconds. Eligible trades flow through; exceptions stop and explain themselves.',
+  },
+  {
+    state: 'Approved',
+    role: 'Middle office',
+    line: 'A scoped approval chain routes the trade to the right desk head. No self-approval, no shortcuts — every signature is recorded as an event.',
+  },
+  {
+    state: 'Confirmed',
+    role: 'Operations',
+    line: 'Confirmation flows out, the deal is locked, and the position updates on the trader\'s blotter and the risk desk\'s exposure view at the same time.',
+  },
+  {
+    state: 'Settled',
+    role: 'Treasury / settlements',
+    line: 'Netting collapses cashflows by counterparty and currency. Payment messages (MT103/MT202) are generated and dispatched on schedule.',
+  },
+  {
+    state: 'Accrued & valued',
+    role: 'Finance / risk',
+    line: 'End-of-day rebuilds curves, accrues interest, marks the book to market and posts journals — every step is an event you can replay.',
+  },
+  {
+    state: 'Closed out',
+    role: 'Back office',
+    line: 'At maturity or termination, rule-driven matching offsets positions and the deal walks cleanly off the book — with the full history intact.',
+  },
+];
+---
+
+<section id="lifecycle" class="section-padding" style="background-color: var(--wb-bg-base);">
+  <div class="container-narrow mx-auto">
+
+    <div class="max-w-3xl mb-14">
+      <span class="section-eyebrow">The complete deal lifecycle</span>
+      <h2 class="section-title mt-3">Follow one trade from capture to closeout.</h2>
+      <p class="section-subtitle">
+        A trading platform isn't a feature list — it's the path a deal walks every day.
+        Here is that path on OpenTRMS, told from the seat of the person who actually does the work.
+      </p>
+    </div>
+
+    <ol class="relative">
+      <span aria-hidden="true" class="absolute left-[15px] md:left-[19px] top-0 bottom-0 w-px" style="background-color: var(--wb-border-subtle);"></span>
+
+      {beats.map((b, i) => (
+        <li class="relative pl-12 md:pl-16 pb-10 last:pb-0">
+          <span class="absolute left-0 top-1 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full text-xs font-mono"
+            style="background-color: var(--wb-bg-panel); border: 1px solid var(--wb-border-strong); color: var(--wb-accent);"
+          >{String(i + 1).padStart(2, '0')}</span>
+          <div class="flex flex-wrap items-baseline gap-3">
+            <h3 class="text-lg font-semibold text-wb-fg">{b.state}</h3>
+            <span class="text-[11px] font-mono uppercase tracking-[0.16em] text-wb-fg-muted">{b.role}</span>
+          </div>
+          <p class="mt-2 text-base text-wb-fg-secondary leading-relaxed max-w-2xl">{b.line}</p>
+        </li>
+      ))}
+    </ol>
+
+    <div class="mt-12 panel max-w-3xl">
+      <p class="text-sm text-wb-fg-secondary leading-relaxed">
+        Behind every state change: a typed event, an immutable hash, an authorised user, a correlation id.
+        Reconstructing what happened on any day, for any deal, is a query — not an investigation.
+      </p>
+    </div>
+  </div>
+</section>

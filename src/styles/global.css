@@ -1,0 +1,81 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--wb-bg-base);
+    color: var(--wb-fg-primary);
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: var(--wb-bg-base);
+    color: var(--wb-fg-primary);
+  }
+
+  ::selection {
+    background-color: var(--wb-accent-muted);
+    color: var(--wb-fg-primary);
+  }
+}
+
+@layer components {
+  .section-padding {
+    @apply px-6 py-24 md:px-8 lg:px-12 xl:px-0;
+  }
+
+  .container-narrow {
+    @apply max-w-6xl mx-auto;
+  }
+
+  .section-eyebrow {
+    @apply text-xs font-mono uppercase tracking-[0.18em] text-wb-accent;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-semibold tracking-tight text-wb-fg;
+  }
+
+  .section-subtitle {
+    @apply text-base md:text-lg text-wb-fg-secondary mt-4 max-w-2xl leading-relaxed;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .panel {
+    background-color: var(--wb-bg-panel);
+    border: 1px solid var(--wb-border-subtle);
+    @apply rounded-lg p-6 transition-colors;
+  }
+
+  .panel:hover {
+    border-color: var(--wb-border-strong);
+  }
+
+  .btn-primary {
+    background-color: var(--wb-accent);
+    color: var(--wb-accent-fg);
+    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm transition-colors;
+  }
+  .btn-primary:hover { background-color: var(--wb-accent-hover); }
+
+  .btn-secondary {
+    border: 1px solid var(--wb-border-strong);
+    color: var(--wb-fg-primary);
+    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm transition-colors;
+  }
+  .btn-secondary:hover {
+    background-color: var(--wb-bg-raised);
+    border-color: var(--wb-accent);
+  }
+
+  .hairline {
+    border-top: 1px solid var(--wb-border-subtle);
+  }
+}

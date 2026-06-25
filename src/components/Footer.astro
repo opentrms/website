@@ -1,0 +1,52 @@
+---
+const links = [
+  { label: 'GitHub',        href: 'https://github.com/opentrms/opentrms' },
+  { label: 'Documentation', href: 'https://github.com/opentrms/opentrms/tree/main/docs' },
+  { label: 'Issues',        href: 'https://github.com/opentrms/opentrms/issues' },
+  { label: 'Discussions',   href: 'https://github.com/opentrms/opentrms/discussions' },
+];
+---
+
+<footer style="background-color: var(--wb-bg-sunken); border-top: 1px solid var(--wb-border-subtle); color: var(--wb-fg-secondary);">
+  <div class="container-narrow mx-auto px-6 md:px-8 lg:px-12 xl:px-0 pt-16 pb-8">
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
+
+      <div>
+        <span class="text-base font-semibold tracking-tight text-wb-fg">OpenTRMS</span>
+        <p class="text-sm leading-relaxed mt-3">
+          Open-source trading and risk management you can own, audit and extend.
+        </p>
+        <p class="text-xs font-mono mt-3 text-wb-fg-muted">
+          Built on Java 21 · Spring Boot · PostgreSQL
+        </p>
+      </div>
+
+      <div>
+        <h3 class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted mb-4">Links</h3>
+        <ul class="space-y-2">
+          {links.map((link) => (
+            <li>
+              <a href={link.href} target="_blank" rel="noopener noreferrer"
+                 class="text-sm hover:text-wb-fg transition-colors">{link.label}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted mb-4">Legal</h3>
+        <ul class="space-y-2 text-sm">
+          <li>Open source</li>
+          <li class="text-wb-fg-muted">© 2026 OpenTRMS Contributors</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="hairline pt-6 text-center">
+      <p class="text-xs text-wb-fg-muted">
+        Made with conviction that capital markets technology should be open.
+      </p>
+    </div>
+  </div>
+</footer>

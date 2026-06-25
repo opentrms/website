@@ -1,0 +1,84 @@
+---
+// AIFirst.astro — AI ops, framed as a control room not a chat widget
+---
+
+<section id="ai" class="section-padding" style="background-color: var(--wb-bg-panel); border-top: 1px solid var(--wb-border-subtle); border-bottom: 1px solid var(--wb-border-subtle);">
+  <div class="container-narrow mx-auto">
+
+    <div class="max-w-3xl mb-12">
+      <span class="section-eyebrow">AI-native operations</span>
+      <h2 class="section-title mt-3">An operations control room that never sleeps — and never lies about what it did.</h2>
+      <p class="section-subtitle">
+        The boring half of trade ops — chasing breaks, pulling confirmations, summarising P&amp;L moves —
+        is exactly the work an agent should own. OpenTRMS gives your team agents that act through the
+        same controls a human does, leave the same audit trail, and stop the moment they hit a limit.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+
+      <div>
+        <ul class="flex flex-col gap-6">
+          <li>
+            <h3 class="text-base font-semibold text-wb-fg">Agents that go through your controls, not around them.</h3>
+            <p class="mt-1 text-sm text-wb-fg-secondary leading-relaxed">
+              Every agent calls the same domain services as the REST API. Same scopes. Same approval
+              chains. An agent cannot do anything a user with its scope couldn't do.
+            </p>
+          </li>
+          <li>
+            <h3 class="text-base font-semibold text-wb-fg">Human-in-the-loop where it matters.</h3>
+            <p class="mt-1 text-sm text-wb-fg-secondary leading-relaxed">
+              The agent proposes; the human approves. Material actions never auto-execute, and every
+              proposal is recorded as an event — including the one you rejected.
+            </p>
+          </li>
+          <li>
+            <h3 class="text-base font-semibold text-wb-fg">Plug into your AI stack, not ours.</h3>
+            <p class="mt-1 text-sm text-wb-fg-secondary leading-relaxed">
+              Built-in MCP server: any MCP-compatible client (Claude, internal agents, Copilot-style
+              IDEs) talks to OpenTRMS out of the box. No bespoke connectors, no proprietary protocol.
+            </p>
+          </li>
+          <li>
+            <h3 class="text-base font-semibold text-wb-fg">Your data stays where it is.</h3>
+            <p class="mt-1 text-sm text-wb-fg-secondary leading-relaxed">
+              Self-hosted. Bring your own model. The agent runtime sits next to your event store —
+              not in a vendor cloud you don't control.
+            </p>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Mock terminal -->
+      <div class="rounded-lg overflow-hidden" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+        <div class="flex items-center gap-2 px-4 py-3" style="background-color: var(--wb-bg-raised); border-bottom: 1px solid var(--wb-border-subtle);">
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: var(--wb-negative);"></span>
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: var(--wb-warning);"></span>
+          <span class="w-2.5 h-2.5 rounded-full" style="background-color: var(--wb-positive);"></span>
+          <span class="ml-3 text-xs text-wb-fg-muted font-mono">opentrms · ops control room</span>
+        </div>
+        <div class="p-5 font-mono text-[13px] leading-relaxed space-y-1 text-wb-fg">
+          <p><span style="color: var(--wb-accent);">$</span> opentrms ops review --book G10-RATES</p>
+          <p class="pt-2 text-wb-fg-secondary">› Anything I should look at before EOD?</p>
+          <div class="pt-2">
+            <p style="color: var(--wb-accent);">Agent:</p>
+            <p class="text-wb-fg-secondary">3 trades exceed the +/-2σ price band on the desk:</p>
+          </div>
+          <div class="pl-3 space-y-0.5 py-1">
+            <p><span class="text-wb-fg-muted inline-block w-16">#4521</span><span>5Y USD IRS · ABC Bank · +3.1σ</span></p>
+            <p><span class="text-wb-fg-muted inline-block w-16">#4544</span><span>2Y EUR IRS · DEF Sarl · −2.4σ</span></p>
+            <p><span class="text-wb-fg-muted inline-block w-16">#4561</span><span>10Y GBP IRS · GHI plc · +2.8σ</span></p>
+          </div>
+          <p class="pt-2 text-wb-fg-secondary">Flag for review? <span style="color: var(--wb-warning);">[Y/n]</span> <span class="text-wb-fg">Y</span></p>
+          <div class="pt-2 space-y-0.5">
+            <p><span style="color: var(--wb-positive);">✓</span> 3 deals routed to Head of Rates</p>
+            <p><span style="color: var(--wb-positive);">✓</span> Events appended · correlation b3f9e1</p>
+          </div>
+          <p class="pt-2"><span style="color: var(--wb-accent);">$</span> <span class="inline-block w-2 h-3.5 align-middle animate-pulse" style="background-color: var(--wb-accent);"></span></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
