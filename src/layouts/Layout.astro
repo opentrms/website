@@ -11,12 +11,17 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  image?: string;
 }
 
 const {
-  title = 'OpenTRMS — Open Source Trading & Risk Management System',
-  description = 'The $0 alternative to $2M-$20M trading systems. AI-native, full lifecycle TRMS built with Java 21, Spring Boot, and PostgreSQL. Open source. Zero vendor lock-in.',
+  title = 'OpenTRMS — Trading and risk management you can own, audit and extend',
+  description = 'Open-source trading and risk management for FX, money markets, derivatives and fixed income. Full trade lifecycle, immutable audit trail and an AI control room — self-hosted on your infrastructure. No license metering, no black box.',
+  image = '/og-image.png',
 } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, 'https://opentrms.com').href;
+const ogImage = new URL(image, 'https://opentrms.com').href;
 ---
 
 <!doctype html>
@@ -24,16 +29,31 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#161b23" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="OpenTRMS Contributors" />
+    <meta name="keywords" content="open source TRMS, trading and risk management system, treasury management system, FX, money markets, derivatives, fixed income, event sourcing, audit trail, immutable ledger, self-hosted, vendor lock-in" />
+
+    <meta property="og:site_name" content="OpenTRMS" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://opentrms.com" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:locale" content="en_US" />
+
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title}</title>
   </head>
   <body>
     <slot />

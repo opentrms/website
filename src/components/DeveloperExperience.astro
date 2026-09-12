@@ -2,7 +2,7 @@
 // DeveloperExperience.astro — short pilot path, no H2, no vendor name-drops
 const dxFeatures = [
   { label: 'API explorer',     sub: 'Swagger UI at /docs' },
-  { label: 'Versioned schema', sub: 'Flyway, forward-only' },
+  { label: 'Versioned schema', sub: 'Forward-only migrations' },
   { label: 'Executable specs', sub: 'Cucumber BDD suite' },
   { label: 'Self-hosted',      sub: 'Open source · your VPC' },
 ];
@@ -16,7 +16,7 @@ const dxFeatures = [
       <h2 class="section-title mt-3">A pilot you can stand up in an afternoon.</h2>
       <p class="section-subtitle">
         No multi-month implementation project, no rooms full of consultants. Clone the repository,
-        bring up the stack with Docker, and book your first trade against a real PostgreSQL ledger.
+        bring up the stack with Docker, and book your first trade against a real ledger.
       </p>
     </div>
 
@@ -32,7 +32,6 @@ const dxFeatures = [
         <div class="p-6 font-mono text-[13px] leading-7 text-wb-fg">
           <div><span style="color: var(--wb-accent);">$</span> git clone https://github.com/opentrms/opentrms</div>
           <div><span style="color: var(--wb-accent);">$</span> cd opentrms &amp;&amp; docker compose up -d</div>
-          <div><span style="color: var(--wb-accent);">$</span> mvn -pl trms-api spring-boot:run</div>
           <div class="mt-4 pt-4" style="border-top: 1px solid var(--wb-border-subtle);">
             <div><span style="color: var(--wb-positive);">✓</span> <span class="text-wb-fg-secondary">Started TrmsApplication in 4.2s</span></div>
             <div><span style="color: var(--wb-positive);">✓</span> <span class="text-wb-fg-secondary">API explorer →</span> <span style="color: var(--wb-info);">http://localhost:8080/docs</span></div>

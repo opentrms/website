@@ -1,0 +1,186 @@
+---
+// Extensibility.astro — the customization surface: Python and Java plugins
+// against a versioned SPI, with an approval lifecycle in front of production.
+
+const extensionPoints = [
+  { name: 'Valuator',         body: 'Price an instrument your own way — exotics, jurisdiction-specific models, your desk conventions.' },
+  { name: 'Cashflow',         body: 'Generate structured payoffs: capped/floored floaters, amortizing schedules, path-dependent coupons.' },
+  { name: 'Posting',          body: 'Your accounting treatment — hedge accounting, fair value option, IFRS 9 staging.' },
+  { name: 'Accrual',          body: 'Daily accrual logic per product family, run inside the end-of-day batch.' },
+  { name: 'Settlement router', body: 'Leg-level settlement instructions for collateral, physical delivery or CLS.' },
+  { name: 'Curve',            body: 'Custom curve construction — bootstrapping, interpolation and day count to your standard.' },
+  { name: 'Product',          body: 'Register a product type that exists only in your book, bound to your own plugin set.' },
+];
+
+const javaSnippet = `@SpiStability(StabilityTier.STABLE)
+public interface ProductValuator {
+
+    boolean supports(Deal deal);
+
+    Valuation valuate(ValuationRequest request);
+}`;
+
+const pythonSnippet = `def _cash_amount(notional, index_rate, spread,
+                 floor_rate, cap_rate, dcf):
+    effective_rate = _decimal(index_rate) + _decimal(spread)
+    effective_rate = max(effective_rate, _decimal(floor_rate))   # floor
+    effective_rate = min(effective_rate, _decimal(cap_rate))     # cap
+    return (notional * effective_rate * _decimal(dcf)).quantize(CENTS)
+
+
+def generate_cashflows(deal_json: str) -> str:
+    deal = json.loads(deal_json)
+    details = deal["details"]
+    # ... one dict per coupon, returned as JSON
+    return json.dumps({"cashflows": cashflows}, sort_keys=True)`;
+
+const lifecycle = ['Draft', 'Under review', 'Approved', 'Active'];
+
+const gates = [
+  { title: 'Four eyes, enforced',      body: 'The author of an artifact cannot approve it. Separation of duties is in the service, not in a policy document.' },
+  { title: 'Determinism, proven',      body: 'Every plugin runs twice over a test corpus at approval time. Outputs must match byte for byte or it is rejected.' },
+  { title: 'A performance budget',     body: 'Each artifact declares its own latency budget and is measured against it before it can go live.' },
+  { title: 'Nothing reaches the network', body: 'Python plugins run in-process with os, socket, subprocess and http imports blocked, under a wall-clock limit.' },
+  { title: 'One active version',       body: 'Each artifact is content-hashed and pinned to an SPI version. Exactly one version is live at a time; retired ones are immutable.' },
+  { title: 'The same door we use',     body: 'Built-in valuators and generators implement the very same SPI. If the contract were not enough for you, it would not be enough for us.' },
+];
+
+function highlight(code: string, lang: 'java' | 'python'): string {
+  const marker = lang === 'python' ? '#' : '//';
+  return code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .split('\n')
+    .map((line) => {
+      const idx = line.indexOf(marker);
+      const quotesBefore = idx === -1 ? 0 : (line.slice(0, idx).match(/&quot;|"/g) ?? []).length;
+      let main = line;
+      let comment = '';
+      if (idx !== -1 && quotesBefore % 2 === 0) {
+        main = line.slice(0, idx);
+        comment = `<span style="color: var(--wb-fg-muted);">${line.slice(idx)}</span>`;
+      }
+      main = main
+        .replace(/("[^"]*")/g, '<span style="color: var(--wb-positive);">$1</span>')
+        .replace(/(@\w+)/g, '<span style="color: var(--wb-warning);">$1</span>')
+        .replace(/\b(public|interface|boolean|def|return|import|from)\b/g, '<span style="color: var(--wb-info);">$1</span>');
+      return main + comment;
+    })
+    .join('\n');
+}
+---
+
+<section id="extend" class="section-padding" style="background-color: var(--wb-bg-panel); border-top: 1px solid var(--wb-border-subtle); border-bottom: 1px solid var(--wb-border-subtle);">
+  <div class="container-narrow mx-auto">
+
+    <div class="max-w-3xl mb-12">
+      <span class="section-eyebrow">Extend it, don't fork it</span>
+      <h2 class="section-title mt-3">Your models and your rules run inside the platform.</h2>
+      <p class="section-subtitle">
+        Every bank prices something its own way. In most systems that means a fork, a consulting
+        engagement, or a spreadsheet nobody can audit. OpenTRMS exposes a versioned extension
+        contract instead: write the piece that is yours in <strong class="text-wb-fg font-semibold">Python</strong>
+        or <strong class="text-wb-fg font-semibold">Java</strong>, hand it to the platform, and upgrade
+        the platform underneath it without touching your code.
+      </p>
+    </div>
+
+    <!-- Extension points -->
+    <div class="mb-14">
+      <h3 class="text-[11px] font-mono uppercase tracking-[0.18em] text-wb-fg-muted mb-5">
+        Seven places your code plugs in
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {extensionPoints.map((point) => (
+          <div class="panel">
+            <span class="text-sm font-semibold text-wb-fg">{point.name}</span>
+            <span class="block text-sm text-wb-fg-secondary leading-relaxed mt-1.5">{point.body}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- The contract, and an implementation of it -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-14">
+
+      <div class="rounded-lg overflow-hidden" style="background-color: var(--wb-bg-base); border: 1px solid var(--wb-border-subtle);">
+        <div class="flex items-center justify-between gap-4 px-5 py-3" style="border-bottom: 1px solid var(--wb-border-subtle); background-color: var(--wb-bg-raised);">
+          <span class="font-mono text-sm text-wb-fg truncate">ProductValuator</span>
+          <span class="badge text-[10px] font-mono uppercase tracking-[0.14em] flex-shrink-0"
+            style="color: var(--wb-accent); background-color: var(--wb-accent-muted); border: 1px solid var(--wb-border-subtle);">
+            The contract
+          </span>
+        </div>
+        <div class="px-5 pt-4 pb-1">
+          <p class="text-sm text-wb-fg-secondary leading-relaxed">
+            The whole surface is this small on purpose. Interfaces are tiered — frozen, stable or
+            evolving — and a compatibility kit checks yours against the tier before it ships.
+          </p>
+        </div>
+        <div class="p-5">
+          <div class="rounded-md overflow-x-auto" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+            <pre class="font-mono text-[13px] leading-relaxed p-5" style="color: var(--wb-fg-primary);"><code set:html={highlight(javaSnippet, 'java')} /></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg overflow-hidden" style="background-color: var(--wb-bg-base); border: 1px solid var(--wb-border-subtle);">
+        <div class="flex items-center justify-between gap-4 px-5 py-3" style="border-bottom: 1px solid var(--wb-border-subtle); background-color: var(--wb-bg-raised);">
+          <span class="font-mono text-sm text-wb-fg truncate">capped_floored_floater.py</span>
+          <span class="badge text-[10px] font-mono uppercase tracking-[0.14em] flex-shrink-0"
+            style="color: var(--wb-fg-secondary); background-color: var(--wb-bg-panel); border: 1px solid var(--wb-border-strong);">
+            Your code
+          </span>
+        </div>
+        <div class="px-5 pt-4 pb-1">
+          <p class="text-sm text-wb-fg-secondary leading-relaxed">
+            A structured payoff as a plain function. Python runs embedded — no service to deploy,
+            no network hop — so quants ship models without waiting on a platform release.
+          </p>
+        </div>
+        <div class="p-5">
+          <div class="rounded-md overflow-x-auto" style="background-color: var(--wb-bg-sunken); border: 1px solid var(--wb-border-subtle);">
+            <pre class="font-mono text-[13px] leading-relaxed p-5" style="color: var(--wb-fg-primary);"><code set:html={highlight(pythonSnippet, 'python')} /></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lifecycle + gates -->
+    <div class="max-w-3xl mb-8">
+      <h3 class="text-2xl md:text-3xl font-semibold tracking-tight text-wb-fg leading-tight">
+        Custom code, under the same control as everything else.
+      </h3>
+      <p class="mt-4 text-base text-wb-fg-secondary leading-relaxed">
+        A plugin is an artifact with a lifecycle, not a file someone dropped on a server. It is
+        uploaded, reviewed, approved and activated — and every one of those steps is attributed
+        in the same audit trail as a trade.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 mb-10 font-mono text-[11px] uppercase tracking-[0.16em]">
+      {lifecycle.map((step, i) => (
+        <>
+          <span class="badge"
+            style={`color: ${i === lifecycle.length - 1 ? 'var(--wb-accent)' : 'var(--wb-fg-secondary)'}; background-color: ${i === lifecycle.length - 1 ? 'var(--wb-accent-muted)' : 'var(--wb-bg-base)'}; border: 1px solid var(--wb-border-strong);`}
+          >{step}</span>
+          {i < lifecycle.length - 1 && <span class="text-wb-fg-muted" aria-hidden="true">→</span>}
+        </>
+      ))}
+      <span class="text-wb-fg-muted ml-1 normal-case tracking-normal font-sans text-xs">
+        then deactivated or retired — retired versions are immutable
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {gates.map((gate) => (
+        <div class="panel">
+          <span class="text-sm font-semibold text-wb-fg">{gate.title}</span>
+          <span class="block text-sm text-wb-fg-secondary leading-relaxed mt-1.5">{gate.body}</span>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>

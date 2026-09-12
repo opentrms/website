@@ -2,7 +2,9 @@
 interface Props {
   title?: string;
 }
-const { title = "Ready to replace your multi-million dollar trading system?" } = Astro.props;
+const { title = "See the system before you commit a line of code." } = Astro.props;
+
+const videoUrl = 'https://docs.opentrms.com/learn/get-started/getting-started';
 ---
 
 <section id="contact" class="section-padding relative overflow-hidden" style="background-color: var(--wb-bg-panel); border-top: 1px solid var(--wb-border-subtle);">
@@ -11,17 +13,27 @@ const { title = "Ready to replace your multi-million dollar trading system?" } =
   </div>
 
   <div class="relative container-narrow mx-auto text-center">
-    <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-wb-fg max-w-3xl mx-auto leading-tight">
+    <span class="badge font-mono tracking-[0.16em] uppercase"
+      style="color: var(--wb-accent); background-color: var(--wb-accent-muted); border: 1px solid var(--wb-border-subtle);"
+    >
+      20-part video series
+    </span>
+
+    <h2 class="mt-6 text-3xl md:text-4xl font-semibold tracking-tight text-wb-fg max-w-3xl mx-auto leading-tight">
       {title}
     </h2>
     <p class="mt-5 text-lg text-wb-fg-secondary max-w-xl mx-auto leading-relaxed">
-      Walk us through your book. We'll walk you through how OpenTRMS would run it —
-      on your infrastructure, against your controls, with your team.
+      Twenty short videos recorded against the running system — deal capture, lifecycle
+      events, the audit trail, EOD batch and the AI control room. Screen recordings throughout,
+      so you are judging the software rather than a deck.
     </p>
 
     <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-      <a href="mailto:hello@opentrms.com?subject=Walkthrough%20request" class="btn-primary px-7 py-4 text-base">
-        Book a walkthrough
+      <a href={videoUrl} target="_blank" rel="noopener noreferrer" class="btn-primary px-7 py-4 text-base">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        Start the video series
       </a>
       <a href="https://github.com/opentrms/opentrms" target="_blank" rel="noopener noreferrer"
          class="btn-secondary px-7 py-4 text-base">
@@ -30,7 +42,7 @@ const { title = "Ready to replace your multi-million dollar trading system?" } =
     </div>
 
     <p class="mt-8 text-xs font-mono uppercase tracking-[0.18em] text-wb-fg-muted">
-      Open source · No license metering · Enterprise support available
+      Open source · No license metering · Self-hosted from day one
     </p>
   </div>
 </section>

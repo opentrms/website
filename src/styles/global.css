@@ -61,14 +61,14 @@
   .btn-primary {
     background-color: var(--wb-accent);
     color: var(--wb-accent-fg);
-    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm transition-colors;
+    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm whitespace-nowrap transition-colors;
   }
   .btn-primary:hover { background-color: var(--wb-accent-hover); }
 
   .btn-secondary {
     border: 1px solid var(--wb-border-strong);
     color: var(--wb-fg-primary);
-    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm transition-colors;
+    @apply inline-flex items-center gap-2 px-5 py-3 rounded-md font-semibold text-sm whitespace-nowrap transition-colors;
   }
   .btn-secondary:hover {
     background-color: var(--wb-bg-raised);

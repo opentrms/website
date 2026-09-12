@@ -51,7 +51,7 @@ export const codeSnippets: CodeSnippet[] = [
   {
     title: 'AI Deal Agent — Natural Language Trade Capture',
     description:
-      'A Spring AI ChatClient agent that implements human-in-the-loop deal capture: gather terms, preview before booking, confirm before executing. Pure Java — no Python orchestration.',
+      'An agent that implements human-in-the-loop deal capture: gather terms, preview before booking, confirm before executing. Wired straight into the domain — no separate orchestration layer.',
     language: 'java',
     filePath: 'trms-ai/src/main/java/io/trms/ai/agent/DealAgent.java',
     code: `@Component
