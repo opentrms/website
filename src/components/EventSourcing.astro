@@ -3,19 +3,19 @@
 const promises = [
   {
     title: 'Nothing is overwritten — ever.',
-    body: 'Every state change appends a new event. The history of a deal is the deal. Auditors stop asking "show me the change log" because the change log is all there is.',
+    body: 'Every state change appends a new event. The history of a deal is the deal — there is no separate change log to request, because the record is nothing else.',
   },
   {
     title: 'Tampering breaks the chain, visibly.',
-    body: 'Every event is hashed and linked to the previous one. Insert, delete or modify any record and the chain refuses to reconcile — no quiet edits, no "lost" rows.',
+    body: 'Every event is hashed and linked to the previous one. Insert, delete or modify any record and the chain refuses to reconcile, so a silent edit is detectable rather than deniable.',
   },
   {
     title: 'Immutability enforced by the database, not by trust.',
-    body: 'UPDATE and DELETE on the event table are revoked at the PostgreSQL level. Application bugs cannot rewrite history. Neither can a misbehaving DBA.',
+    body: 'UPDATE and DELETE on the event table are revoked at the database level. Application bugs cannot rewrite history. Neither can a misbehaving DBA.',
   },
   {
     title: 'Every action is attributed.',
-    body: 'User, scope, correlation id and timestamp are part of the event. "Who approved this?" is a one-line query, not a forensics project.',
+    body: 'User, scope, correlation id and timestamp are part of the event. "Who approved this?" is a one-line query.',
   },
   {
     title: 'Replay any day, on demand.',
