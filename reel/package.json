@@ -1,0 +1,14 @@
+{
+  "name": "opentrms-reel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node fonts.mjs && node audio.mjs",
+    "audio": "node audio.mjs",
+    "stills": "node render.mjs stills",
+    "render": "node render.mjs video"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
